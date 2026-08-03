@@ -1,0 +1,163 @@
+@import "tailwindcss";
+
+:root {
+  /* Canvas */
+  --canvas: #0b0e1a;
+  --canvas-light: #fafafc;
+
+  /* Surfaces */
+  --surface: #12162a;
+  --surface-elevated: #1a1f38;
+  --surface-hover: #222845;
+
+  /* Brand */
+  --brand-primary: #6e56cf;
+  --brand-secondary: #a78bfa;
+  --accent: #ff6b6b;
+  --success: #2dd4bf;
+  --warning: #f59e0b;
+  --danger: #ef4444;
+
+  /* Text */
+  --text-primary: #f4f4f8;
+  --text-secondary: #9aa0b8;
+  --text-muted: #6b7190;
+
+  /* Borders & misc */
+  --border: rgba(255, 255, 255, 0.08);
+  --border-strong: rgba(255, 255, 255, 0.16);
+
+  /* Aurora Pulse */
+  --aurora: linear-gradient(135deg, #6e56cf 0%, #a78bfa 45%, #ff6b6b 100%);
+
+  --background: var(--canvas);
+  --foreground: var(--text-primary);
+  --color-danger: var(--danger);
+  --color-surface-elevated: var(--surface-elevated);
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-canvas: var(--canvas);
+  --color-surface: var(--surface);
+  --color-surface-elevated: var(--surface-elevated);
+  --color-surface-hover: var(--surface-hover);
+  --color-brand-primary: var(--brand-primary);
+  --color-brand-secondary: var(--brand-secondary);
+  --color-accent: var(--accent);
+  --color-success: var(--success);
+  --color-warning: var(--warning);
+  --color-danger: var(--danger);
+  --color-text-primary: var(--text-primary);
+  --color-text-secondary: var(--text-secondary);
+  --color-text-muted: var(--text-muted);
+  --color-border: var(--border);
+  --color-border-strong: var(--border-strong);
+  --font-sans: var(--font-inter);
+  --font-display: var(--font-display);
+  --font-mono: var(--font-mono);
+}
+
+@property --aurora-angle {
+  syntax: "<angle>";
+  initial-value: 0deg;
+  inherits: false;
+}
+
+@keyframes aurora-drift {
+  0% {
+    transform: translate(0, 0) scale(1);
+  }
+  50% {
+    transform: translate(8%, -6%) scale(1.08);
+  }
+  100% {
+    transform: translate(0, 0) scale(1);
+  }
+}
+
+@keyframes aurora-hue {
+  to {
+    --aurora-angle: 360deg;
+  }
+}
+
+@keyframes blob-float {
+  0%,
+  100% {
+    transform: translate(0, 0);
+  }
+  33% {
+    transform: translate(30px, -40px);
+  }
+  66% {
+    transform: translate(-20px, 20px);
+  }
+}
+
+.aurora-bg {
+  background: var(--aurora);
+}
+
+.aurora-ring {
+  background: conic-gradient(
+    from var(--aurora-angle),
+    #6e56cf,
+    #a78bfa,
+    #ff6b6b,
+    #2dd4bf,
+    #6e56cf
+  );
+  animation: aurora-hue 3s linear infinite;
+}
+
+.status-ring-unseen {
+  padding: 2px;
+  border-radius: 9999px;
+  background: conic-gradient(
+    from var(--aurora-angle),
+    #6e56cf,
+    #a78bfa,
+    #ff6b6b,
+    #2dd4bf,
+    #6e56cf
+  );
+  animation: aurora-hue 3s linear infinite;
+}
+
+.soft-depth {
+  box-shadow:
+    0 1px 2px rgba(0, 0, 0, 0.24),
+    0 8px 24px -8px rgba(0, 0, 0, 0.4);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .aurora-ring,
+  .status-ring-unseen,
+  .blob-animate {
+    animation: none !important;
+  }
+}
+
+body {
+  background: var(--canvas);
+  color: var(--text-primary);
+  font-family: var(--font-inter), system-ui, sans-serif;
+}
+
+/* Scrollbars */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.12);
+  border-radius: 999px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.2);
+}
