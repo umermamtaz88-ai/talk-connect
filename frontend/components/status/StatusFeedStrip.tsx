@@ -36,7 +36,11 @@ export function StatusFeedStrip() {
   }
 
   useEffect(() => {
-    void refreshFeed();
+    // Defer status fetch so chat list can paint first (Neon is high-latency)
+    const t = window.setTimeout(() => {
+      void refreshFeed();
+    }, 150);
+    return () => window.clearTimeout(t);
   }, [setStatusFeed]);
 
   const myItem = feed.find((f) => f.user.id === me?.id);

@@ -76,8 +76,27 @@ export const useAppStore = create<AppState>((set, get) => ({
   setActiveChat: (id) => set({ activeChatId: id }),
 
   loadChats: async () => {
+    const CACHE_KEY = "tc_chats_cache";
+    if (typeof window !== "undefined" && get().chats.length === 0) {
+      try {
+        const raw = sessionStorage.getItem(CACHE_KEY);
+        if (raw) {
+          const cached = JSON.parse(raw) as Chat[];
+          if (Array.isArray(cached) && cached.length) set({ chats: cached });
+        }
+      } catch {
+        /* ignore */
+      }
+    }
     const chats = await chatsApi.list();
     set({ chats });
+    if (typeof window !== "undefined") {
+      try {
+        sessionStorage.setItem(CACHE_KEY, JSON.stringify(chats));
+      } catch {
+        /* ignore quota */
+      }
+    }
   },
 
   loadMessages: async (chatId) => {

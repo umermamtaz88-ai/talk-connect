@@ -9,7 +9,7 @@ from sqlalchemy import select, text
 
 from backend.api import ai, auth, calls_vault, chats, friends, location, media, messages, status, users, ws
 from backend.core.config import get_settings
-from backend.core.database import AsyncSessionLocal, init_db
+from backend.core.database import AsyncSessionLocal, init_db, warm_db
 from backend.core.redis_client import redis_manager
 from backend.models.vault import AvatarIcon
 from backend.services import status_service
@@ -65,16 +65,35 @@ async def _status_expiry_loop(stop: asyncio.Event) -> None:
             continue
 
 
+async def _db_keepalive_loop(stop: asyncio.Event) -> None:
+    """Keep Neon compute awake — cold starts were causing multi-second spinners."""
+    while not stop.is_set():
+        try:
+            await warm_db()
+        except Exception:
+            logger.exception("DB keepalive failed")
+        try:
+            await asyncio.wait_for(stop.wait(), timeout=45)
+        except TimeoutError:
+            continue
+
+
 @asynccontextmanager
 async def lifespan(_: FastAPI):
     await init_db()
+    try:
+        await warm_db()
+    except Exception:
+        logger.exception("Initial DB warm failed")
     await redis_manager.connect()
     await _seed_avatar_icons()
     stop = asyncio.Event()
     task = asyncio.create_task(_status_expiry_loop(stop))
+    keepalive = asyncio.create_task(_db_keepalive_loop(stop))
     yield
     stop.set()
     await task
+    await keepalive
     await redis_manager.close()
 
 

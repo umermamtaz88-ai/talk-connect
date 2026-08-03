@@ -46,6 +46,8 @@ type RequestOptions = {
   formData?: FormData;
   auth?: boolean;
   headers?: Record<string, string>;
+  /** Request timeout in ms (default 12s) — prevents infinite home-screen spinner */
+  timeoutMs?: number;
   /** Skip the single 401→refresh→retry cycle */
   _retried?: boolean;
 };
@@ -122,6 +124,7 @@ export async function api<T = unknown>(
     formData,
     auth = true,
     headers = {},
+    timeoutMs = 12_000,
     _retried = false,
   } = options;
   const h: Record<string, string> = { ...headers };
@@ -135,12 +138,28 @@ export async function api<T = unknown>(
     if (token) h.Authorization = `Bearer ${token}`;
   }
 
-  const res = await fetch(`${API_BASE}${path}`, {
-    method,
-    headers: h,
-    body: formData ?? (body !== undefined ? JSON.stringify(body) : undefined),
-    credentials: "include",
-  });
+  const controller = new AbortController();
+  const timer =
+    timeoutMs > 0
+      ? setTimeout(() => controller.abort(), timeoutMs)
+      : null;
+  let res: Response;
+  try {
+    res = await fetch(`${API_BASE}${path}`, {
+      method,
+      headers: h,
+      body: formData ?? (body !== undefined ? JSON.stringify(body) : undefined),
+      credentials: "include",
+      signal: controller.signal,
+    });
+  } catch (err) {
+    if (err instanceof DOMException && err.name === "AbortError") {
+      throw new ApiError(408, "Request timed out — check your connection");
+    }
+    throw err;
+  } finally {
+    if (timer) clearTimeout(timer);
+  }
 
   // Silent refresh + one retry on expired access tokens
   if (res.status === 401 && auth && !_retried) {

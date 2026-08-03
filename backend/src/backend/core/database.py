@@ -10,7 +10,8 @@ from backend.core.config import get_settings
 settings = get_settings()
 
 _connect_args: dict = {}
-_engine_kwargs: dict = {"echo": settings.debug}
+# SQL echo adds major latency on every query — never enable on the hot path
+_engine_kwargs: dict = {"echo": False}
 
 db_url = settings.database_url
 if db_url.startswith("sqlite"):
@@ -21,15 +22,17 @@ elif "postgresql" in db_url or "asyncpg" in db_url:
     _connect_args = {"ssl": True, "statement_cache_size": 0}
     _engine_kwargs.update(
         {
-            "pool_pre_ping": True,
+            # pool_pre_ping doubles RTT to Neon (~1–3s each); PgBouncer already
+            # recycles dead connections, so skip the extra SELECT 1.
+            "pool_pre_ping": False,
             "pool_size": 5,
             "max_overflow": 5,
-            "pool_recycle": 300,
+            "pool_recycle": 280,
+            "pool_timeout": 10,
         }
     )
     if "neon.tech" in host or "pooler" in host:
-        # Keep pool small against serverless Postgres
-        _engine_kwargs.update({"pool_size": 3, "max_overflow": 2})
+        _engine_kwargs.update({"pool_size": 5, "max_overflow": 5})
 
 engine = create_async_engine(db_url, connect_args=_connect_args, **_engine_kwargs)
 AsyncSessionLocal = async_sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
@@ -43,10 +46,19 @@ async def get_db() -> AsyncGenerator[AsyncSession, None]:
     async with AsyncSessionLocal() as session:
         try:
             yield session
-            await session.commit()
+            # Avoid an extra Neon round-trip COMMIT on pure reads
+            if session.new or session.dirty or session.deleted:
+                await session.commit()
         except Exception:
             await session.rollback()
             raise
+
+
+async def warm_db() -> None:
+    """Touch the pool so the first user request isn't paying Neon wake-up alone."""
+    async with engine.connect() as conn:
+        await conn.execute(text("SELECT 1"))
+        await conn.commit()
 
 
 async def _sqlite_add_column(conn, table: str, column: str, ddl: str) -> None:
