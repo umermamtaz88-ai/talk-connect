@@ -251,15 +251,16 @@ export const authApi = {
       { method: "POST", body, auth: false },
     ),
 
-  refresh: () =>
+  refresh: (opts?: { timeoutMs?: number }) =>
     api<{ access_token: string; token_type: string; expires_in: number }>(
       "/auth/refresh",
-      { method: "POST", auth: false },
+      { method: "POST", auth: false, timeoutMs: opts?.timeoutMs },
     ),
 
   logout: () => api("/auth/logout", { method: "POST" }),
   logoutAll: () => api("/auth/logout-all", { method: "POST" }),
-  me: () => api<User>("/auth/me"),
+  me: (opts?: { timeoutMs?: number }) =>
+    api<User>("/auth/me", { timeoutMs: opts?.timeoutMs }),
 
   forgotPassword: (email: string) =>
     api<{ message: string; reset_token?: string }>("/auth/forgot-password", {

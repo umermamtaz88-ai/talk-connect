@@ -6,6 +6,7 @@ import { talkSocket } from "../ws";
 import type { User } from "../types";
 
 const USER_CACHE_KEY = "tc_user";
+const AUTH_TIMEOUT_MS = 4_000;
 
 function readCachedUser(): User | null {
   if (typeof window === "undefined") return null;
@@ -65,15 +66,21 @@ export const useAuthStore = create<AuthState>((set) => ({
     }
 
     try {
-      const user = await authApi.me();
+      const user = await authApi.me({ timeoutMs: AUTH_TIMEOUT_MS });
       writeCachedUser(user);
       set({ user, hydrated: true, loading: false, token });
       talkSocket.connect(token);
     } catch {
+      // If we already have a cached user, avoid blocking the app
+      // on slow backend/Neon startup during refresh attempts.
+      if (cached) {
+        set({ hydrated: true, loading: false });
+        return;
+      }
       try {
-        const refreshed = await authApi.refresh();
+        const refreshed = await authApi.refresh({ timeoutMs: AUTH_TIMEOUT_MS });
         setAccessToken(refreshed.access_token);
-        const user = await authApi.me();
+        const user = await authApi.me({ timeoutMs: AUTH_TIMEOUT_MS });
         writeCachedUser(user);
         set({
           user,
