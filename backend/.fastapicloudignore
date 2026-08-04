@@ -1,0 +1,13 @@
+# Files to exclude from FastAPI Cloud uploads (in addition to .gitignore)
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.env
+*.db
+vault_storage/
+*.md
+!README.md
+scripts/

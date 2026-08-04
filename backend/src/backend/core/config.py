@@ -52,7 +52,10 @@ class Settings(BaseSettings):
         "http://127.0.0.1:3000",
         "http://localhost:5173",
         "http://127.0.0.1:5173",
+        "https://talkconnect.vercel.app",
     ]
+    # Comma-separated extra origins for Vercel preview URLs, etc.
+    cors_origins_extra: str = ""
     # LiveKit (optional — stub tokens used when unset)
     livekit_url: str = ""
     livekit_api_key: str = ""
@@ -86,6 +89,21 @@ class Settings(BaseSettings):
         if not isinstance(v, str) or not v.strip():
             return v
         return normalize_database_url(v)
+
+    def resolved_cors_origins(self) -> list[str]:
+        extras = [
+            o.strip()
+            for o in (self.cors_origins_extra or "").split(",")
+            if o.strip()
+        ]
+        # Preserve order, drop dupes
+        seen: set[str] = set()
+        out: list[str] = []
+        for origin in [*self.cors_origins, *extras]:
+            if origin not in seen:
+                seen.add(origin)
+                out.append(origin)
+        return out
 
 
 @lru_cache

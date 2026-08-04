@@ -80,13 +80,24 @@ async def _db_keepalive_loop(stop: asyncio.Event) -> None:
 
 @asynccontextmanager
 async def lifespan(_: FastAPI):
-    await init_db()
+    # Keep startup bounded so FastAPI Cloud health verification can succeed
+    # even when Neon is cold or Redis is unavailable.
     try:
-        await warm_db()
+        await asyncio.wait_for(init_db(), timeout=20)
+    except Exception:
+        logger.exception("init_db failed or timed out during startup")
+    try:
+        await asyncio.wait_for(warm_db(), timeout=10)
     except Exception:
         logger.exception("Initial DB warm failed")
-    await redis_manager.connect()
-    await _seed_avatar_icons()
+    try:
+        await asyncio.wait_for(redis_manager.connect(), timeout=5)
+    except Exception:
+        logger.exception("Redis connect failed; using in-memory fallback")
+    try:
+        await asyncio.wait_for(_seed_avatar_icons(), timeout=15)
+    except Exception:
+        logger.exception("Avatar icon seed failed")
     stop = asyncio.Event()
     task = asyncio.create_task(_status_expiry_loop(stop))
     keepalive = asyncio.create_task(_db_keepalive_loop(stop))
@@ -100,7 +111,7 @@ async def lifespan(_: FastAPI):
 app = FastAPI(title=settings.app_name, lifespan=lifespan)
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=settings.cors_origins,
+    allow_origins=settings.resolved_cors_origins(),
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -121,15 +132,16 @@ app.include_router(ws.router)
 
 @app.get("/health")
 async def health():
+    """Liveness for FastAPI Cloud verification — must stay fast and always 200."""
     return {"status": "ok", "app": settings.app_name}
 
 
 @app.get("/health/db")
 async def health_db():
-    """Confirm the app can reach Postgres (Neon cold-start safe via pool_pre_ping)."""
+    """Readiness: confirms Postgres is reachable (Neon cold-start safe)."""
     try:
         async with AsyncSessionLocal() as db:
-            result = await db.execute(text("SELECT 1"))
+            result = await asyncio.wait_for(db.execute(text("SELECT 1")), timeout=8)
             ok = result.scalar() == 1
         return {"status": "ok" if ok else "error", "database": "connected" if ok else "failed"}
     except Exception as exc:

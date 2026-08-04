@@ -22,9 +22,9 @@ elif "postgresql" in db_url or "asyncpg" in db_url:
     _connect_args = {"ssl": True, "statement_cache_size": 0}
     _engine_kwargs.update(
         {
-            # pool_pre_ping doubles RTT to Neon (~1–3s each); PgBouncer already
-            # recycles dead connections, so skip the extra SELECT 1.
-            "pool_pre_ping": False,
+            # Detect stale Neon connections after idle; retry instead of failing
+            # the first request after cold start.
+            "pool_pre_ping": True,
             "pool_size": 5,
             "max_overflow": 5,
             "pool_recycle": 280,

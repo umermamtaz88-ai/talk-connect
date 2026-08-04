@@ -6,13 +6,14 @@ readme = "README.md"
 authors = [
     { name = "umermamtaz88-ai", email = "umermamtaz88@gmail.com" }
 ]
-requires-python = ">=3.14"
+# FastAPI Cloud commonly provides 3.12/3.13; keep local 3.14 via .python-version
+requires-python = ">=3.12"
 dependencies = [
     "aiosqlite>=0.22.1",
     "asyncpg>=0.31.0",
     "bcrypt>=5.0.0",
     "email-validator>=2.3.0",
-    "fastapi>=0.141.1",
+    "fastapi[standard]>=0.141.1",
     "httpx>=0.28.1",
     "pydantic-settings>=2.14.2",
     "pyjwt>=2.13.0",
@@ -29,3 +30,11 @@ backend = "backend:main"
 [build-system]
 requires = ["uv_build>=0.12.1,<0.13.0"]
 build-backend = "uv_build"
+
+# Required for FastAPI Cloud / `fastapi deploy` with src/ layout
+[tool.fastapi]
+entrypoint = "backend.main:app"
+
+[tool.uv.build-backend]
+module-name = "backend"
+module-root = "src"
