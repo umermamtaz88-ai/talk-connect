@@ -205,11 +205,7 @@ async def _issue_session(
     response.set_cookie(
         key=REFRESH_COOKIE,
         value=refresh,
-        httponly=True,
-        secure=not settings.debug,
-        samesite="lax",
-        max_age=settings.refresh_token_days * 24 * 3600,
-        path="/auth",
+        **settings.refresh_cookie_kwargs(),
     )
     return TokenResponse(access_token=access, expires_in=settings.access_token_minutes * 60)
 
@@ -332,11 +328,7 @@ async def refresh_tokens(db: AsyncSession, request: Request, response: Response)
     response.set_cookie(
         key=REFRESH_COOKIE,
         value=new_refresh,
-        httponly=True,
-        secure=not settings.debug,
-        samesite="lax",
-        max_age=settings.refresh_token_days * 24 * 3600,
-        path="/auth",
+        **settings.refresh_cookie_kwargs(),
     )
     return TokenResponse(access_token=access, expires_in=settings.access_token_minutes * 60)
 

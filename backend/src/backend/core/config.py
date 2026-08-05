@@ -53,9 +53,13 @@ class Settings(BaseSettings):
         "http://localhost:5173",
         "http://127.0.0.1:5173",
         "https://talkconnect.vercel.app",
+        "https://talk-connect-2nec.vercel.app",
+        "https://talk-connect-pearl.vercel.app",
     ]
     # Comma-separated extra origins for Vercel preview URLs, etc.
     cors_origins_extra: str = ""
+    # When true (typical cloud), cookies use SameSite=None so Vercel can call the API
+    cookie_cross_site: bool | None = None
     # LiveKit (optional — stub tokens used when unset)
     livekit_url: str = ""
     livekit_api_key: str = ""
@@ -104,6 +108,29 @@ class Settings(BaseSettings):
                 seen.add(origin)
                 out.append(origin)
         return out
+
+    def refresh_cookie_kwargs(self) -> dict:
+        """Cookie flags for refresh tokens across Vercel ↔ FastAPI Cloud."""
+        cross_site = (
+            self.cookie_cross_site
+            if self.cookie_cross_site is not None
+            else (not self.debug)
+        )
+        if cross_site:
+            return {
+                "httponly": True,
+                "secure": True,
+                "samesite": "none",
+                "max_age": self.refresh_token_days * 24 * 3600,
+                "path": "/auth",
+            }
+        return {
+            "httponly": True,
+            "secure": not self.debug,
+            "samesite": "lax",
+            "max_age": self.refresh_token_days * 24 * 3600,
+            "path": "/auth",
+        }
 
 
 @lru_cache
