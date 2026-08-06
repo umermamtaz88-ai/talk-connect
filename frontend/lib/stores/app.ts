@@ -50,16 +50,75 @@ function mergeMessage(prev: Message[], msg: Message): Message[] {
   const byId = prev.findIndex((m) => m.id === msg.id);
   if (byId >= 0) {
     return prev.map((m, i) =>
-      i === byId ? { ...m, ...msg, localStatus: msg.localStatus ?? "sent" } : m,
+      i === byId
+        ? {
+            ...m,
+            ...msg,
+            localStatus: msg.localStatus ?? m.localStatus ?? "sent",
+            clientId: msg.clientId ?? m.clientId,
+          }
+        : m,
     );
   }
-  if (msg.clientId) {
-    const byClient = prev.findIndex((m) => m.clientId === msg.clientId);
+
+  const clientKey =
+    msg.clientId ?? (msg.id.startsWith("opt-") ? msg.id : undefined);
+  if (clientKey) {
+    const byClient = prev.findIndex(
+      (m) => m.clientId === clientKey || m.id === clientKey,
+    );
     if (byClient >= 0) {
-      return prev.map((m, i) => (i === byClient ? { ...msg, localStatus: "sent" } : m));
+      return prev.map((m, i) =>
+        i === byClient
+          ? {
+              ...msg,
+              localStatus: msg.localStatus ?? "sent",
+              clientId: clientKey,
+            }
+          : m,
+      );
     }
   }
+
+  // WS echo of our own send arrives without clientId while the optimistic
+  // bubble is still pending — reclaim it instead of appending a duplicate.
+  if (msg.localStatus !== "pending") {
+    const pendingIdx = prev.findIndex(
+      (m) =>
+        m.sender_id === msg.sender_id &&
+        (m.localStatus === "pending" ||
+          m.id.startsWith("opt-") ||
+          Boolean(m.clientId?.startsWith("opt-"))) &&
+        m.type === msg.type &&
+        (m.body ?? "") === (msg.body ?? ""),
+    );
+    if (pendingIdx >= 0) {
+      const pending = prev[pendingIdx];
+      return prev.map((m, i) =>
+        i === pendingIdx
+          ? {
+              ...msg,
+              localStatus: "sent" as const,
+              clientId: pending.clientId ?? msg.clientId,
+            }
+          : m,
+      );
+    }
+  }
+
   return [...prev, msg];
+}
+
+function dedupeById(messages: Message[]): Message[] {
+  const seen = new Set<string>();
+  const out: Message[] = [];
+  for (let i = messages.length - 1; i >= 0; i--) {
+    const m = messages[i];
+    if (seen.has(m.id)) continue;
+    seen.add(m.id);
+    out.push(m);
+  }
+  return out.reverse();
 }
 
 export const useAppStore = create<AppState>((set, get) => ({
@@ -137,10 +196,12 @@ export const useAppStore = create<AppState>((set, get) => ({
 
   upsertMessage: (msg) => {
     set((s) => {
-      const next = mergeMessage(s.messages[msg.chat_id] ?? [], {
-        ...msg,
-        localStatus: msg.localStatus ?? "sent",
-      });
+      const next = dedupeById(
+        mergeMessage(s.messages[msg.chat_id] ?? [], {
+          ...msg,
+          localStatus: msg.localStatus ?? "sent",
+        }),
+      );
       const chats = s.chats.map((c) =>
         c.id === msg.chat_id ? { ...c, last_message: msg } : c,
       );
@@ -151,10 +212,16 @@ export const useAppStore = create<AppState>((set, get) => ({
   replaceOptimistic: (clientId, msg) => {
     set((s) => {
       const prev = s.messages[msg.chat_id] ?? [];
-      const next = prev.map((m) =>
-        m.clientId === clientId || m.id === clientId
-          ? { ...msg, localStatus: "sent" as const, clientId }
-          : m,
+      const withoutOpt = prev.filter(
+        (m) => m.clientId !== clientId && m.id !== clientId,
+      );
+      // Prefer merge so a WS copy that already landed doesn't create a twin.
+      const next = dedupeById(
+        mergeMessage(withoutOpt, {
+          ...msg,
+          localStatus: "sent",
+          clientId,
+        }),
       );
       return {
         messages: { ...s.messages, [msg.chat_id]: next },

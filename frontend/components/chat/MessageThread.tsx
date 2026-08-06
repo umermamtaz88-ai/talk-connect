@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   ArrowLeft,
   Phone,
@@ -54,6 +54,7 @@ export default function MessageThread({
   const clearUnread = useAppStore((s) => s.clearUnread);
   const patchMessage = useAppStore((s) => s.patchMessage);
   const { typingOn, typingOff } = useThrottledTyping(chatId);
+  const sendLock = useRef(false);
 
   const [text, setText] = useState("");
   const [sendState, setSendState] = useState<ComposerState>("idle");
@@ -108,7 +109,8 @@ export default function MessageThread({
   }
 
   async function sendOptimistic(body: string, opts?: { code?: boolean; clientId?: string }) {
-    if (!me || !body.trim()) return;
+    if (!me || !body.trim() || sendLock.current) return;
+    sendLock.current = true;
     const clientId = opts?.clientId ?? `opt-${crypto.randomUUID()}`;
     const optimistic: Message = {
       id: clientId,
@@ -135,12 +137,13 @@ export default function MessageThread({
     } catch {
       markMessageFailed(chatId, clientId);
     } finally {
+      sendLock.current = false;
       setSendState("idle");
     }
   }
 
   async function send() {
-    if (!text.trim()) return;
+    if (!text.trim() || sendLock.current) return;
     const body = text;
     const code = codeMode;
     setText("");
