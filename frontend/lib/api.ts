@@ -614,7 +614,7 @@ type AiStreamHandlers = {
   onError?: (message: string) => void;
 };
 
-/** Stream Talk Connect AI via SSE. Never calls Gemini from the browser. */
+/** Stream TALK-CONNECT AI via SSE. Never calls Gemini from the browser. */
 export async function streamAiChat(
   body: { message: string; conversationId?: string },
   handlers: AiStreamHandlers,

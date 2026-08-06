@@ -180,10 +180,12 @@ export function MessageBubble({
     translation?.lang ??
     "";
 
+  // Opacity-only entrance — y/scale inside Virtuoso causes layout thrash and
+  // can hard-crash WebKit ("This page couldn't load") when opening a thread.
   return (
     <motion.div
-      initial={motionSafe.entrance}
-      animate={motionSafe.entranceAnimate}
+      initial={motionSafe.reduce ? false : { opacity: 0 }}
+      animate={{ opacity: 1 }}
       transition={motionSafe.transition}
       className={cn(
         "group/bubble flex",

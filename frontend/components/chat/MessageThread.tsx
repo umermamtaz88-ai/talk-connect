@@ -30,6 +30,9 @@ import { useThrottledTyping } from "@/hooks/useThrottledTyping";
 import { useLiveLocationWatcher } from "@/hooks/useLiveLocationWatcher";
 import type { LocationShare, Message } from "@/lib/types";
 
+const EMPTY_MESSAGES: Message[] = [];
+const EMPTY_TYPING: string[] = [];
+
 export default function MessageThread({
   chatId,
   onBack,
@@ -41,9 +44,9 @@ export default function MessageThread({
 }) {
   const me = useAuthStore((s) => s.user);
   const chats = useAppStore((s) => s.chats);
-  const messages = useAppStore((s) => s.messages[chatId] ?? []);
+  const messages = useAppStore((s) => s.messages[chatId] ?? EMPTY_MESSAGES);
   const loading = useAppStore((s) => s.messagesLoading[chatId]);
-  const typing = useAppStore((s) => s.typing[chatId] ?? []);
+  const typing = useAppStore((s) => s.typing[chatId] ?? EMPTY_TYPING);
   const loadMessages = useAppStore((s) => s.loadMessages);
   const upsertMessage = useAppStore((s) => s.upsertMessage);
   const replaceOptimistic = useAppStore((s) => s.replaceOptimistic);
@@ -163,8 +166,12 @@ export default function MessageThread({
   }
 
   async function startCall(type: "audio" | "video") {
-    const call = await callsApi.start(chatId, type);
-    onStartCall?.(call.id, type);
+    try {
+      const call = await callsApi.start(chatId, type);
+      onStartCall?.(call.id, type);
+    } catch {
+      // Call start failures shouldn't take down the thread UI.
+    }
   }
 
   async function setAutoTranslate(lang: string | null) {

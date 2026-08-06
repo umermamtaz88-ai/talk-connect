@@ -95,7 +95,7 @@ export function BlockReportSheet({
                   {displayName ?? "This person"}
                 </h3>
                 <p className="text-sm text-text-secondary">
-                  Choose an action. Reporting helps keep Talk Connect safe.
+                  Choose an action. Reporting helps keep TALK-CONNECT safe.
                 </p>
                 {error && (
                   <p className="rounded-lg border border-danger/30 bg-danger/10 px-3 py-2 text-sm text-danger">

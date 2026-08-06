@@ -5,18 +5,28 @@ import { GoogleMap, Marker, useJsApiLoader } from "@react-google-maps/api";
 import { talkSocket } from "@/lib/ws";
 import type { LocationShare } from "@/lib/types";
 
-export default function LocationFullMap({
+function MapUnavailable({ reason }: { reason: string }) {
+  return (
+    <div className="flex h-full flex-col items-center justify-center gap-2 bg-[#0d1020] px-6 text-center text-sm text-text-muted">
+      <p>{reason}</p>
+    </div>
+  );
+}
+
+function LocationFullMapInner({
   share,
   interactive = true,
   onShareUpdate,
+  apiKey,
 }: {
   share: LocationShare;
   interactive?: boolean;
   onShareUpdate?: (share: LocationShare) => void;
+  apiKey: string;
 }) {
-  const { isLoaded } = useJsApiLoader({
+  const { isLoaded, loadError } = useJsApiLoader({
     id: "talk-connect-google-map",
-    googleMapsApiKey: process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY ?? "",
+    googleMapsApiKey: apiKey,
   });
 
   const [pos, setPos] = useState({
@@ -65,6 +75,10 @@ export default function LocationFullMap({
     });
   }, [share, onShareUpdate]);
 
+  if (loadError) {
+    return <MapUnavailable reason="Map failed to load. Try again later." />;
+  }
+
   if (!isLoaded) {
     return (
       <div className="flex h-full items-center justify-center bg-[#0d1020] text-sm text-text-muted">
@@ -94,5 +108,31 @@ export default function LocationFullMap({
         }}
       />
     </GoogleMap>
+  );
+}
+
+export default function LocationFullMap({
+  share,
+  interactive = true,
+  onShareUpdate,
+}: {
+  share: LocationShare;
+  interactive?: boolean;
+  onShareUpdate?: (share: LocationShare) => void;
+}) {
+  const apiKey = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY?.trim();
+  if (!apiKey) {
+    return (
+      <MapUnavailable reason="Maps are not configured for this deployment." />
+    );
+  }
+
+  return (
+    <LocationFullMapInner
+      share={share}
+      interactive={interactive}
+      onShareUpdate={onShareUpdate}
+      apiKey={apiKey}
+    />
   );
 }

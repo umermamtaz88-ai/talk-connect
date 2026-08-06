@@ -46,7 +46,7 @@ export function AiAssistantThread({ onBack }: { onBack?: () => void }) {
     const body = text.trim();
     if (!body || streaming) return;
     if (!getAccessToken()) {
-      setError("You need to be signed in to use Talk Connect AI.");
+      setError("You need to be signed in to use TALK-CONNECT AI.");
       return;
     }
 
@@ -137,7 +137,7 @@ export function AiAssistantThread({ onBack }: { onBack?: () => void }) {
         </div>
         <div className="min-w-0">
           <h2 className="truncate font-[family-name:var(--font-display)] text-base font-semibold">
-            Talk Connect AI
+            TALK-CONNECT AI
           </h2>
           <p className="text-xs text-text-muted">Powered by Gemini · private to you</p>
         </div>
@@ -199,7 +199,7 @@ export function AiAssistantThread({ onBack }: { onBack?: () => void }) {
               }
             }}
             rows={1}
-            placeholder="Message Talk Connect AI…"
+            placeholder="Message TALK-CONNECT AI…"
             disabled={streaming}
             className="max-h-32 min-h-[44px] flex-1 resize-none rounded-2xl border border-border bg-surface px-4 py-3 text-sm outline-none focus:border-brand-primary"
           />

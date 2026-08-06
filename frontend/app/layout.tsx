@@ -25,7 +25,7 @@ const mono = JetBrains_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "TALK CONNECT",
+  title: "TALK-CONNECT",
   description: "Connect every conversation — chats, status, vault, and calls",
   icons: {
     icon: [
@@ -36,7 +36,7 @@ export const metadata: Metadata = {
     shortcut: "/logo.jpg",
   },
   openGraph: {
-    title: "TALK CONNECT",
+    title: "TALK-CONNECT",
     description: "Connect every conversation",
     images: [{ url: "/logo.jpg" }],
   },

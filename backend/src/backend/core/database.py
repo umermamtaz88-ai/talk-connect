@@ -46,9 +46,10 @@ async def get_db() -> AsyncGenerator[AsyncSession, None]:
     async with AsyncSessionLocal() as session:
         try:
             yield session
-            # Avoid an extra Neon round-trip COMMIT on pure reads
-            if session.new or session.dirty or session.deleted:
-                await session.commit()
+            # Always commit on success. Checking only session.new/dirty/deleted is
+            # wrong after flush(): those collections are empty, so writes were
+            # skipped and rolled back on session close (breaking register/OTP).
+            await session.commit()
         except Exception:
             await session.rollback()
             raise

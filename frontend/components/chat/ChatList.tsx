@@ -54,6 +54,7 @@ export function ChatList({
 
   const showAi =
     !q.trim() ||
+    "talk-connect ai".includes(q.toLowerCase()) ||
     "talk connect ai".includes(q.toLowerCase()) ||
     q.toLowerCase().includes("ai");
 
@@ -118,7 +119,7 @@ export function ChatList({
               <Sparkles size={18} />
             </div>
             <div className="min-w-0 flex-1">
-              <p className="truncate text-sm font-semibold">Talk Connect AI</p>
+              <p className="truncate text-sm font-semibold">TALK-CONNECT AI</p>
               <p className="truncate text-xs text-text-muted">
                 Your personal assistant
               </p>

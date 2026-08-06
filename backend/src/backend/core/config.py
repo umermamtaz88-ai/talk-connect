@@ -34,7 +34,7 @@ class Settings(BaseSettings):
         extra="ignore",
     )
 
-    app_name: str = "TALK CONNECT"
+    app_name: str = "TALK-CONNECT"
     debug: bool = True
     secret_key: str = "dev-secret-change-me-in-production"
     access_token_minutes: int = 15
@@ -79,7 +79,7 @@ class Settings(BaseSettings):
     otp_secret: str = ""
     # Resend transactional email (preferred over raw SMTP)
     resend_api_key: str = ""
-    resend_from: str = "Talk Connect <onboarding@resend.dev>"
+    resend_from: str = "TALK-CONNECT <onboarding@resend.dev>"
     # Gemini (server-side only — never expose to the browser)
     gemini_api_key: str = ""
     llm_model: str = "gemini-flash-latest"

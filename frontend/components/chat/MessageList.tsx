@@ -113,8 +113,8 @@ export function MessageList({
       <Virtuoso
         ref={virtuoso}
         data={rows}
-        followOutput={() => (atBottomRef.current ? "smooth" : false)}
-        increaseViewportBy={{ top: 400, bottom: 200 }}
+        followOutput={() => (atBottomRef.current ? "auto" : false)}
+        increaseViewportBy={{ top: 200, bottom: 120 }}
         className="h-full"
         atBottomStateChange={onBottomChange}
         itemContent={itemContent}

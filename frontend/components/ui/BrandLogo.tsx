@@ -19,7 +19,7 @@ export function BrandLogo({
     return (
       <Image
         src="/logo.jpg"
-        alt="TALK CONNECT"
+        alt="TALK-CONNECT"
         width={40}
         height={40}
         priority={priority}
@@ -35,7 +35,7 @@ export function BrandLogo({
     return (
       <Image
         src="/logo.jpg"
-        alt="TALK CONNECT — Connect every conversation"
+        alt="TALK-CONNECT — Connect every conversation"
         fill
         priority={priority}
         sizes="(max-width: 1024px) 100vw, 55vw"
@@ -47,7 +47,7 @@ export function BrandLogo({
   return (
     <Image
       src="/logo.jpg"
-      alt="TALK CONNECT — Connect every conversation"
+      alt="TALK-CONNECT — Connect every conversation"
       width={1200}
       height={675}
       priority={priority}

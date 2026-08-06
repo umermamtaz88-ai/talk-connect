@@ -59,7 +59,7 @@ async def send_otp_email(
                         "Content-Type": "application/json",
                     },
                     json={
-                        "from": settings.resend_from or "Talk Connect <onboarding@resend.dev>",
+                        "from": settings.resend_from or "TALK-CONNECT <onboarding@resend.dev>",
                         "to": [to],
                         "subject": subject,
                         "html": html,

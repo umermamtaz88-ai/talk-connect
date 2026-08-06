@@ -15,7 +15,8 @@ function pick<T = unknown>(
 
 export function normalizeMessage(raw: unknown): import("./types").Message {
   const o = (raw ?? {}) as Record<string, unknown>;
-  const attachments = (pick<unknown[]>(o, "attachments", "attachments") ?? []).map(
+  const rawAttachments = pick<unknown>(o, "attachments", "attachments");
+  const attachments = (Array.isArray(rawAttachments) ? rawAttachments : []).map(
     (a) => {
       const att = (a ?? {}) as Record<string, unknown>;
       return {
@@ -28,7 +29,8 @@ export function normalizeMessage(raw: unknown): import("./types").Message {
       };
     },
   );
-  const reactions = (pick<unknown[]>(o, "reactions", "reactions") ?? []).map(
+  const rawReactions = pick<unknown>(o, "reactions", "reactions");
+  const reactions = (Array.isArray(rawReactions) ? rawReactions : []).map(
     (r) => {
       const rx = (r ?? {}) as Record<string, unknown>;
       return {
