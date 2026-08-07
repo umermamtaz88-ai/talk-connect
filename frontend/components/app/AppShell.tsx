@@ -9,28 +9,14 @@ import { ThreadSkeleton } from "@/components/chat/ThreadSkeleton";
 import { AI_CHAT_ID } from "@/components/chat/AiAssistantThread";
 import { BrandLogo } from "@/components/ui/BrandLogo";
 import { Spinner } from "@/components/ui/primitives";
+import { AiLauncher } from "@/components/app/AiLauncher";
+import { CommandPalette } from "@/components/app/CommandPalette";
 import { useAuthStore } from "@/lib/stores/auth";
 import { useAppStore } from "@/lib/stores/app";
 import { cn } from "@/lib/utils";
 
 const MessageThread = dynamic(
   () => import("@/components/chat/MessageThread"),
-  {
-    loading: () => (
-      <div className="flex h-full flex-1 flex-col bg-canvas">
-        <div className="h-14 border-b border-border" />
-        <ThreadSkeleton />
-      </div>
-    ),
-    ssr: false,
-  },
-);
-
-const AiAssistantThread = dynamic(
-  () =>
-    import("@/components/chat/AiAssistantThread").then(
-      (m) => m.AiAssistantThread,
-    ),
   {
     loading: () => (
       <div className="flex h-full flex-1 flex-col bg-canvas">
@@ -73,6 +59,14 @@ const ProfileSettings = dynamic(
   { ssr: false },
 );
 
+const CreateGroupSheet = dynamic(
+  () =>
+    import("@/components/friends/CreateGroupSheet").then(
+      (m) => m.CreateGroupSheet,
+    ),
+  { ssr: false },
+);
+
 type Nav = "chats" | "friends" | "settings";
 
 export function AppShell() {
@@ -84,6 +78,9 @@ export function AppShell() {
 
   const [nav, setNav] = useState<Nav>("chats");
   const [mobileShowThread, setMobileShowThread] = useState(false);
+  const [aiOpen, setAiOpen] = useState(false);
+  const [paletteOpen, setPaletteOpen] = useState(false);
+  const [createGroup, setCreateGroup] = useState(false);
   const [activeCall, setActiveCall] = useState<{
     callId: string;
     callType: "audio" | "video";
@@ -92,6 +89,17 @@ export function AppShell() {
   useEffect(() => {
     if (hydrated && !user) router.replace("/auth");
   }, [hydrated, user, router]);
+
+  useEffect(() => {
+    function onKey(e: KeyboardEvent) {
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") {
+        e.preventDefault();
+        setPaletteOpen((v) => !v);
+      }
+    }
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, []);
 
   if (!hydrated || !user) {
     return (
@@ -102,10 +110,17 @@ export function AppShell() {
   }
 
   function openChat(id: string) {
+    if (id === AI_CHAT_ID) {
+      setAiOpen(true);
+      return;
+    }
     setActiveChat(id);
     setNav("chats");
     setMobileShowThread(true);
   }
+
+  const threadId =
+    activeChatId && activeChatId !== AI_CHAT_ID ? activeChatId : null;
 
   return (
     <div className="flex h-screen flex-col bg-canvas md:flex-row">
@@ -147,8 +162,9 @@ export function AppShell() {
         >
           {nav === "chats" && (
             <ChatList
-              activeId={activeChatId}
+              activeId={threadId}
               onSelect={(id) => openChat(id)}
+              onOpenAi={() => setAiOpen(true)}
             />
           )}
           {nav === "friends" && (
@@ -169,25 +185,22 @@ export function AppShell() {
             !mobileShowThread || nav !== "chats" ? "hidden md:flex" : "flex",
           )}
         >
-          {activeChatId && nav === "chats" ? (
-            activeChatId === AI_CHAT_ID ? (
-              <AiAssistantThread
-                onBack={() => setMobileShowThread(false)}
-              />
-            ) : (
-              <MessageThread
-                chatId={activeChatId}
-                onBack={() => setMobileShowThread(false)}
-                onStartCall={(callId, callType) =>
-                  setActiveCall({ callId, callType })
-                }
-              />
-            )
+          {threadId && nav === "chats" ? (
+            <MessageThread
+              chatId={threadId}
+              onBack={() => setMobileShowThread(false)}
+              onStartCall={(callId, callType) =>
+                setActiveCall({ callId, callType })
+              }
+            />
           ) : (
             <div className="hidden flex-1 flex-col items-center justify-center bg-canvas px-8 md:flex">
-              <BrandLogo className="mb-6 w-full max-w-md rounded-2xl shadow-[0_0_60px_-12px_rgba(0,200,255,0.35)]" />
+              <BrandLogo className="mb-6 w-full max-w-md rounded-2xl border border-border" />
               <p className="text-sm text-text-muted">
                 Select a chat to start messaging
+              </p>
+              <p className="mt-2 font-mono text-[11px] text-text-muted">
+                ⌘K / Ctrl+K · command palette
               </p>
             </div>
           )}
@@ -219,6 +232,30 @@ export function AppShell() {
           </button>
         ))}
       </nav>
+
+      <AiLauncher
+        open={aiOpen}
+        onOpen={() => setAiOpen(true)}
+        onClose={() => setAiOpen(false)}
+      />
+      <CommandPalette
+        open={paletteOpen}
+        onClose={() => setPaletteOpen(false)}
+        onOpenChat={openChat}
+        onOpenAi={() => setAiOpen(true)}
+        onNewGroup={() => setCreateGroup(true)}
+      />
+      {createGroup && (
+        <CreateGroupSheet
+          open={createGroup}
+          kind="group"
+          onClose={() => setCreateGroup(false)}
+          onCreated={(id) => {
+            setCreateGroup(false);
+            openChat(id);
+          }}
+        />
+      )}
 
       <IncomingCallOverlay />
       {activeCall && (

@@ -61,6 +61,23 @@ function CodeMessageCard({ message }: { message: Message }) {
 
 function VoiceMessage({ message }: { message: Message }) {
   const [open, setOpen] = useState(false);
+  const [speaking, setSpeaking] = useState(false);
+
+  function readAloud() {
+    if (!message.transcript || typeof window === "undefined") return;
+    window.speechSynthesis?.cancel();
+    const u = new SpeechSynthesisUtterance(message.transcript);
+    u.onend = () => setSpeaking(false);
+    u.onerror = () => setSpeaking(false);
+    setSpeaking(true);
+    window.speechSynthesis?.speak(u);
+  }
+
+  function stopAloud() {
+    window.speechSynthesis?.cancel();
+    setSpeaking(false);
+  }
+
   return (
     <div className="min-w-[200px]">
       <div className="mb-1 flex h-8 items-end gap-0.5 px-1">
@@ -72,15 +89,26 @@ function VoiceMessage({ message }: { message: Message }) {
           />
         ))}
       </div>
-      {message.transcript && (
-        <button
-          type="button"
-          onClick={() => setOpen((v) => !v)}
-          className="text-left text-[11px] text-text-muted"
-        >
-          {open ? message.transcript : "Show transcript"}
-        </button>
-      )}
+      <div className="flex flex-wrap items-center gap-2">
+        {message.transcript && (
+          <button
+            type="button"
+            onClick={() => setOpen((v) => !v)}
+            className="text-left text-[11px] text-text-muted"
+          >
+            {open ? message.transcript : "Show transcript"}
+          </button>
+        )}
+        {message.transcript && (
+          <button
+            type="button"
+            onClick={() => (speaking ? stopAloud() : readAloud())}
+            className="rounded-full border border-border px-2 py-0.5 text-[10px] text-brand-secondary"
+          >
+            {speaking ? "Stop read-aloud" : "Read aloud"}
+          </button>
+        )}
+      </div>
     </div>
   );
 }
@@ -91,14 +119,19 @@ export function MessageBubble({
   showTail,
   grouped,
   onRetry,
+  onReply,
   autoTranslateLanguage,
+  arrivalIndex = 0,
 }: {
   message: Message;
   mine: boolean;
   showTail: boolean;
   grouped: boolean;
   onRetry?: (message: Message) => void;
+  onReply?: (message: Message) => void;
   autoTranslateLanguage?: string | null;
+  /** Burst arrival stagger index (group flood choreography). */
+  arrivalIndex?: number;
 }) {
   const motionSafe = useMotionSafe();
   const me = useAuthStore((s) => s.user);
@@ -106,6 +139,25 @@ export function MessageBubble({
   const deleted = !!message.deleted_at;
   const pending = message.localStatus === "pending";
   const failed = message.localStatus === "failed";
+  const [shake, setShake] = useState(false);
+  const [readPulse, setReadPulse] = useState(false);
+  const prevPending = useRef(pending);
+
+  useEffect(() => {
+    if (!failed) return;
+    setShake(true);
+    const t = window.setTimeout(() => setShake(false), 140);
+    return () => clearTimeout(t);
+  }, [failed]);
+
+  useEffect(() => {
+    if (prevPending.current && !pending && !failed && mine) {
+      setReadPulse(true);
+      const t = window.setTimeout(() => setReadPulse(false), 120);
+      return () => clearTimeout(t);
+    }
+    prevPending.current = pending;
+  }, [pending, failed, mine]);
 
   const [pickerOpen, setPickerOpen] = useState(false);
   const [translating, setTranslating] = useState(false);
@@ -180,20 +232,47 @@ export function MessageBubble({
     translation?.lang ??
     "";
 
-  // Opacity-only entrance — y/scale inside Virtuoso causes layout thrash and
-  // can hard-crash WebKit ("This page couldn't load") when opening a thread.
+  // Opacity-only entrance — y/scale inside Virtuoso causes layout thrash.
+  // Arrival choreography: slight delay for burst deliveries.
+  const stagger = motionSafe.reduce
+    ? 0
+    : Math.min(arrivalIndex * 0.06, 0.4);
+
   return (
     <motion.div
       initial={motionSafe.reduce ? false : { opacity: 0 }}
-      animate={{ opacity: 1 }}
-      transition={motionSafe.transition}
+      animate={
+        shake && !motionSafe.reduce
+          ? { opacity: 1, x: [0, -4, 4, -2, 0] }
+          : { opacity: 1, x: 0 }
+      }
+      transition={{
+        ...motionSafe.transition,
+        delay: stagger,
+        x: { duration: 0.12 },
+      }}
+      drag={motionSafe.reduce || !onReply ? false : "x"}
+      dragConstraints={{ left: 0, right: 72 }}
+      dragElastic={0.12}
+      dragTransition={{
+        bounceStiffness: 400,
+        bounceDamping: 28,
+      }}
+      onDragEnd={(_, info) => {
+        if (info.offset.x > 56) onReply?.(message);
+      }}
       className={cn(
-        "group/bubble flex",
+        "group/bubble relative flex",
         mine ? "justify-end" : "justify-start",
         grouped ? "mt-1" : "mt-3",
         pending && "opacity-60",
       )}
     >
+      {!motionSafe.reduce && onReply && (
+        <span className="pointer-events-none absolute left-2 top-1/2 -translate-y-1/2 text-[10px] text-text-muted opacity-0 transition group-active/bubble:opacity-60">
+          Reply
+        </span>
+      )}
       <ReactionOrbTrigger onReact={react}>
         <div className="relative max-w-[75%]">
           {message.context && (
@@ -339,7 +418,15 @@ export function MessageBubble({
                 {formatMessageTime(message.created_at)}
                 {mine && pending && <Clock size={10} className="ml-0.5" />}
                 {mine && !pending && !failed && (
-                  <CheckCheck size={11} className="ml-0.5 opacity-80" />
+                  <CheckCheck
+                    size={11}
+                    className={cn(
+                      "ml-0.5 transition-colors duration-200",
+                      readPulse
+                        ? "read-tick-pulse"
+                        : "text-success/90 opacity-90",
+                    )}
+                  />
                 )}
                 {mine && failed && (
                   <button

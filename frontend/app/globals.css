@@ -127,18 +127,101 @@
 }
 
 .soft-depth {
+  /* Elevation +1 — hairline border + light shadow (Linear-style restraint) */
+  border: 1px solid var(--border);
+  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.03);
+}
+
+.elevation-0 {
+  background: var(--surface);
+  border: 1px solid var(--border);
+}
+
+.elevation-1 {
+  background: var(--surface-elevated);
+  border: 1px solid var(--border);
+  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.04);
+}
+
+/* Typing Aura — composer glow while peer is typing */
+.typing-aura {
   box-shadow:
-    0 1px 2px rgba(0, 0, 0, 0.24),
-    0 8px 24px -8px rgba(0, 0, 0, 0.4);
+    0 0 0 1px rgba(110, 86, 207, 0.35),
+    0 0 24px rgba(167, 139, 250, 0.22);
+  animation: typing-aura-pulse 1.2s ease-in-out infinite;
+}
+
+@keyframes typing-aura-pulse {
+  0%,
+  100% {
+    box-shadow:
+      0 0 0 1px rgba(110, 86, 207, 0.28),
+      0 0 16px rgba(167, 139, 250, 0.14);
+  }
+  50% {
+    box-shadow:
+      0 0 0 1px rgba(110, 86, 207, 0.5),
+      0 0 28px rgba(255, 107, 107, 0.18);
+  }
+}
+
+.headline-aurora {
+  background: var(--aurora);
+  background-size: 200% 100%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  animation: headline-sweep 1.2s var(--ease-out, cubic-bezier(0.16, 1, 0.3, 1)) forwards;
+}
+
+@keyframes headline-sweep {
+  from {
+    background-position: 100% 0;
+  }
+  to {
+    background-position: 0% 0;
+  }
+}
+
+.read-tick-pulse {
+  color: var(--success);
+  animation: read-tick-pop 80ms ease-out;
+}
+
+@keyframes read-tick-pop {
+  0% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.3);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+:focus-visible {
+  outline: 2px solid var(--brand-primary);
+  outline-offset: 2px;
 }
 
 @media (prefers-reduced-motion: reduce) {
   .aurora-ring,
   .status-ring-unseen,
-  .blob-animate {
+  .blob-animate,
+  .typing-aura,
+  .headline-aurora,
+  .read-tick-pulse {
     animation: none !important;
   }
+  .typing-aura {
+    box-shadow: 0 0 0 1px rgba(110, 86, 207, 0.35);
+  }
+  .headline-aurora {
+    background-position: 0% 0;
+  }
 }
+
 
 body {
   background: var(--canvas);

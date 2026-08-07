@@ -99,12 +99,16 @@ function OtpInput({
   );
 }
 
-export function AuthForm() {
+export function AuthForm({
+  initialStep = "login",
+}: {
+  initialStep?: Step;
+}) {
   const router = useRouter();
   const loginWithToken = useAuthStore((s) => s.loginWithToken);
   const motionSafe = useMotionSafe();
 
-  const [step, setStep] = useState<Step>("login");
+  const [step, setStep] = useState<Step>(initialStep);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [username, setUsername] = useState("");
@@ -277,9 +281,10 @@ export function AuthForm() {
 
   return (
     <div className="relative flex h-full min-h-screen w-full">
-      <div className="relative hidden w-[55%] overflow-hidden bg-[#05070d] lg:block">
-        <BrandLogo variant="fill" priority />
-        <div className="absolute inset-0 bg-gradient-to-r from-transparent via-transparent to-canvas/40" />
+      <div className="relative hidden w-[55%] overflow-hidden aurora-bg lg:block">
+        <div className="absolute inset-0 bg-[#05070d]/55" />
+        <BrandLogo variant="fill" priority className="opacity-90" />
+        <div className="absolute inset-0 bg-gradient-to-r from-transparent via-transparent to-canvas/50" />
       </div>
 
       <div className="flex w-full flex-col justify-center bg-canvas px-8 py-12 lg:w-[45%] lg:px-16">

@@ -43,6 +43,13 @@ export function playMessageNotification() {
   } catch {
     /* ignore */
   }
+  try {
+    if (typeof navigator !== "undefined" && "vibrate" in navigator) {
+      navigator.vibrate(15);
+    }
+  } catch {
+    /* ignore */
+  }
 }
 
 if (typeof window !== "undefined") {

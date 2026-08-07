@@ -23,7 +23,7 @@ export function MorphSendButton({
       type="button"
       onClick={state === "typing" ? onSend : undefined}
       onPointerDown={state === "idle" ? onHoldToRecord : undefined}
-      className="relative grid h-11 w-11 place-items-center rounded-full bg-[linear-gradient(135deg,#6E56CF,#FF6B6B)]"
+      className="relative grid h-11 w-11 place-items-center rounded-full bg-brand-primary"
       aria-label={
         state === "idle"
           ? "Hold to record"

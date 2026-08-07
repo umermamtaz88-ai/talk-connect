@@ -33,8 +33,9 @@ export function AuroraButton({
       transition={spring}
       className={cn(
         "relative overflow-hidden rounded-full px-6 py-3 font-medium text-white",
-        "bg-[linear-gradient(135deg,#6E56CF_0%,#A78BFA_45%,#FF6B6B_100%)]",
-        "shadow-[0_8px_24px_-8px_rgba(110,86,207,0.55)]",
+        /* Flat Signal Violet — Aurora Pulse fill reserved for hero/auth/call/status rings */
+        "bg-brand-primary",
+        "shadow-[0_8px_24px_-10px_rgba(110,86,207,0.45)]",
         "disabled:pointer-events-none disabled:opacity-50",
         className,
       )}

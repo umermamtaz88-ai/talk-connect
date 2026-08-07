@@ -15,9 +15,11 @@ import { cn } from "@/lib/utils";
 
 export function ChatList({
   onSelect,
+  onOpenAi,
   activeId,
 }: {
   onSelect: (id: string) => void;
+  onOpenAi?: () => void;
   activeId?: string | null;
 }) {
   const chats = useAppStore((s) => s.chats);
@@ -107,24 +109,29 @@ export function ChatList({
         <div className="px-2 pb-2">
           <button
             type="button"
-            onClick={() => onSelect(AI_CHAT_ID)}
+            onClick={() => (onOpenAi ? onOpenAi() : onSelect(AI_CHAT_ID))}
             className={cn(
-              "flex w-full items-center gap-3 rounded-2xl px-3 py-3 text-left transition",
-              activeId === AI_CHAT_ID
-                ? "bg-brand-primary/15 ring-1 ring-brand-primary/40"
-                : "hover:bg-surface-hover",
+              "soft-depth flex w-full items-center gap-3 rounded-2xl px-3 py-3 text-left transition",
+              "hover:bg-surface-hover",
             )}
           >
-            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-[linear-gradient(135deg,#0ea5e9_0%,#6366f1_55%,#f43f5e_100%)] text-white shadow-[0_8px_20px_-10px_rgba(99,102,241,0.8)]">
+            <div
+              className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-surface-elevated text-brand-secondary"
+              style={{
+                background:
+                  "linear-gradient(#1a1f38, #1a1f38) padding-box, var(--aurora) border-box",
+                border: "2px solid transparent",
+              }}
+            >
               <Sparkles size={18} />
             </div>
             <div className="min-w-0 flex-1">
               <p className="truncate text-sm font-semibold">TALK-CONNECT AI</p>
               <p className="truncate text-xs text-text-muted">
-                Your personal assistant
+                Opens beside your chat
               </p>
             </div>
-            <span className="rounded-md bg-brand-primary/20 px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wide text-brand-secondary">
+            <span className="rounded-md border border-brand-primary/40 px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wide text-brand-secondary">
               AI
             </span>
           </button>

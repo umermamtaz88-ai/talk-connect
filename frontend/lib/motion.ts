@@ -16,6 +16,19 @@ export const motionTokens = {
     enter: [0.16, 1, 0.3, 1] as const,
     exit: [0.7, 0, 0.84, 0] as const,
   },
+  /** Physics settle on drag release (swipe / reorder). */
+  dragSpring: { bounceStiffness: 400, bounceDamping: 28 } as const,
+  /** layoutId shared-element transitions (list → thread). */
+  sharedElement: {
+    type: "spring",
+    stiffness: 350,
+    damping: 32,
+  } as const,
+  /** Theme radial wipe. */
+  themeWipe: {
+    duration: 0.5,
+    ease: [0.16, 1, 0.3, 1] as const,
+  },
 } as const;
 
 /** Exit animations are ~65% of enter duration — feels responsive. */
@@ -27,6 +40,11 @@ export const transitions = {
   snappy: motionTokens.spring.snappy as Transition,
   smooth: motionTokens.spring.smooth as Transition,
   gentle: motionTokens.spring.gentle as Transition,
+  sharedElement: motionTokens.sharedElement as Transition,
+  themeWipe: {
+    duration: motionTokens.themeWipe.duration,
+    ease: motionTokens.themeWipe.ease,
+  } as Transition,
   fast: {
     duration: motionTokens.duration.fast,
     ease: motionTokens.ease.enter,
@@ -57,9 +75,9 @@ export const sheetMotion = {
   transition: transitions.gentle,
 };
 
-/** Message / list-item entrance. */
+/** Message / list-item entrance — opacity only inside Virtuoso. */
 export const entranceMotion = {
-  initial: { opacity: 0, y: 12, scale: 0.98 },
-  animate: { opacity: 1, y: 0, scale: 1 },
+  initial: { opacity: 0 },
+  animate: { opacity: 1 },
   transition: transitions.smooth,
 };

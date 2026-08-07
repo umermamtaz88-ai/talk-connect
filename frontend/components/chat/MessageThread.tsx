@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { motion } from "framer-motion";
 import {
   ArrowLeft,
   Phone,
@@ -10,6 +11,7 @@ import {
   Code2,
   HardDrive,
   MapPin,
+  X,
 } from "lucide-react";
 import { MessageList } from "./MessageList";
 import {
@@ -28,7 +30,9 @@ import { useAppStore } from "@/lib/stores/app";
 import { useAuthStore } from "@/lib/stores/auth";
 import { useThrottledTyping } from "@/hooks/useThrottledTyping";
 import { useLiveLocationWatcher } from "@/hooks/useLiveLocationWatcher";
+import { useMotionSafe } from "@/hooks/useMotionSafe";
 import type { LocationShare, Message } from "@/lib/types";
+import { cn } from "@/lib/utils";
 
 const EMPTY_MESSAGES: Message[] = [];
 const EMPTY_TYPING: string[] = [];
@@ -55,6 +59,7 @@ export default function MessageThread({
   const patchMessage = useAppStore((s) => s.patchMessage);
   const { typingOn, typingOff } = useThrottledTyping(chatId);
   const sendLock = useRef(false);
+  const motionSafe = useMotionSafe();
 
   const [text, setText] = useState("");
   const [sendState, setSendState] = useState<ComposerState>("idle");
@@ -68,6 +73,7 @@ export default function MessageThread({
     null,
   );
   const [autoLang, setAutoLang] = useState<string | null>(null);
+  const [replyTo, setReplyTo] = useState<Message | null>(null);
 
   const chat = chats.find((c) => c.id === chatId);
   const title =
@@ -112,6 +118,7 @@ export default function MessageThread({
     if (!me || !body.trim() || sendLock.current) return;
     sendLock.current = true;
     const clientId = opts?.clientId ?? `opt-${crypto.randomUUID()}`;
+    const replyId = replyTo?.id;
     const optimistic: Message = {
       id: clientId,
       clientId,
@@ -120,18 +127,22 @@ export default function MessageThread({
       type: opts?.code ? "code" : "text",
       body: body.trim(),
       code_language: opts?.code ? "typescript" : null,
+      reply_to_id: replyId && !replyId.startsWith("opt-") ? replyId : null,
       created_at: new Date().toISOString(),
       localStatus: "pending",
       reactions: [],
     };
     upsertMessage(optimistic);
     setSendState("sending");
+    setReplyTo(null);
     typingOff();
     try {
       const msg = await messagesApi.send(chatId, {
         body: body.trim(),
         type: opts?.code ? "code" : "text",
         codeLanguage: opts?.code ? "typescript" : undefined,
+        replyToId:
+          replyId && !replyId.startsWith("opt-") ? replyId : undefined,
       });
       replaceOptimistic(clientId, { ...msg, clientId, localStatus: "sent" });
     } catch {
@@ -203,13 +214,20 @@ export default function MessageThread({
             <ArrowLeft size={18} />
           </button>
         )}
-        <Avatar
-          name={title}
-          url={chat?.avatar_url ?? chat?.peer?.avatar_url}
-          size={40}
-        />
+        <motion.div layoutId={motionSafe.reduce ? undefined : `chat-avatar-${chatId}`}>
+          <Avatar
+            name={title}
+            url={chat?.avatar_url ?? chat?.peer?.avatar_url}
+            size={40}
+          />
+        </motion.div>
         <div className="min-w-0 flex-1">
-          <p className="truncate font-medium">{title}</p>
+          <motion.p
+            layoutId={motionSafe.reduce ? undefined : `chat-title-${chatId}`}
+            className="truncate font-medium"
+          >
+            {title}
+          </motion.p>
           {typing.length > 0 ? (
             <div className="flex items-center gap-1 text-xs text-success">
               typing <TypingDots />
@@ -320,6 +338,7 @@ export default function MessageThread({
             messages={messages}
             myId={me?.id}
             onRetry={(m) => void retry(m)}
+            onReply={(m) => setReplyTo(m)}
             autoTranslateLanguage={autoLang}
           />
         )}
@@ -331,7 +350,30 @@ export default function MessageThread({
             Code Room mode — message will send as type: code
           </p>
         )}
-        <div className="flex items-end gap-2">
+        {replyTo && (
+          <div className="mb-2 flex items-center gap-2 rounded-xl border border-border bg-surface px-3 py-2 text-xs">
+            <div className="min-w-0 flex-1">
+              <p className="text-brand-secondary">Replying</p>
+              <p className="truncate text-text-secondary">
+                {replyTo.body ?? replyTo.type}
+              </p>
+            </div>
+            <button
+              type="button"
+              aria-label="Cancel reply"
+              className="rounded-full p-1 text-text-muted hover:bg-surface-hover"
+              onClick={() => setReplyTo(null)}
+            >
+              <X size={14} />
+            </button>
+          </div>
+        )}
+        <div
+          className={cn(
+            "flex items-end gap-2 rounded-2xl transition-shadow",
+            typing.length > 0 && "typing-aura p-1",
+          )}
+        >
           <div className="relative">
             <button
               type="button"

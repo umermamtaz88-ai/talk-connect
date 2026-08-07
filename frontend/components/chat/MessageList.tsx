@@ -1,10 +1,10 @@
 "use client";
 
-import { useCallback, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Virtuoso, type VirtuosoHandle } from "react-virtuoso";
 import { ArrowDown } from "lucide-react";
 import { MessageBubble } from "./MessageBubble";
-import { datePillLabel, isSameDay } from "@/lib/utils";
+import { datePillLabel, formatMessageTime, isSameDay } from "@/lib/utils";
 import { throttle } from "@/lib/throttle";
 import type { Message } from "@/lib/types";
 
@@ -17,10 +17,13 @@ type Row =
       mine: boolean;
       grouped: boolean;
       showTail: boolean;
+      arrivalIndex: number;
     };
 
 function buildRows(messages: Message[], myId?: string): Row[] {
   const out: Row[] = [];
+  // Burst window: messages within 2s of each other share a stagger lane
+  let burstStart = 0;
   messages.forEach((m, i) => {
     const prev = messages[i - 1];
     const next = messages[i + 1];
@@ -30,6 +33,13 @@ function buildRows(messages: Message[], myId?: string): Row[] {
         key: `d-${m.id}-${m.created_at}`,
         label: datePillLabel(m.created_at),
       });
+    }
+    if (
+      !prev ||
+      new Date(m.created_at).getTime() - new Date(prev.created_at).getTime() >
+        2000
+    ) {
+      burstStart = i;
     }
     const mine = m.sender_id === myId;
     const grouped =
@@ -49,6 +59,7 @@ function buildRows(messages: Message[], myId?: string): Row[] {
       mine,
       grouped,
       showTail,
+      arrivalIndex: i - burstStart,
     });
   });
   return out;
@@ -58,17 +69,23 @@ export function MessageList({
   messages,
   myId,
   onRetry,
+  onReply,
   autoTranslateLanguage,
 }: {
   messages: Message[];
   myId?: string;
   onRetry?: (message: Message) => void;
+  onReply?: (message: Message) => void;
   autoTranslateLanguage?: string | null;
 }) {
   const rows = useMemo(() => buildRows(messages, myId), [messages, myId]);
   const virtuoso = useRef<VirtuosoHandle>(null);
+  const scrollerRef = useRef<HTMLElement | null>(null);
   const [showFab, setShowFab] = useState(false);
+  const [scrubLabel, setScrubLabel] = useState<string | null>(null);
+  const [scrubY, setScrubY] = useState(0);
   const atBottomRef = useRef(true);
+  const scrubbing = useRef(false);
 
   const onBottomChange = useMemo(
     () =>
@@ -78,6 +95,43 @@ export function MessageList({
       }, 100),
     [],
   );
+
+  useEffect(() => {
+    const el = scrollerRef.current;
+    if (!el) return;
+
+    function onPointerDown(e: PointerEvent) {
+      const target = e.target as HTMLElement;
+      // Rough hit on scrollbar thumb area (right edge)
+      if (e.offsetX < el!.clientWidth - 14) return;
+      scrubbing.current = true;
+    }
+    function onPointerMove(e: PointerEvent) {
+      if (!scrubbing.current || !el) return;
+      const rect = el.getBoundingClientRect();
+      const y = e.clientY - rect.top;
+      const ratio = Math.min(1, Math.max(0, y / rect.height));
+      const idx = Math.floor(ratio * Math.max(messages.length - 1, 0));
+      const m = messages[idx];
+      if (m) {
+        setScrubLabel(formatMessageTime(m.created_at));
+        setScrubY(y);
+      }
+    }
+    function onPointerUp() {
+      scrubbing.current = false;
+      setScrubLabel(null);
+    }
+
+    el.addEventListener("pointerdown", onPointerDown);
+    window.addEventListener("pointermove", onPointerMove);
+    window.addEventListener("pointerup", onPointerUp);
+    return () => {
+      el.removeEventListener("pointerdown", onPointerDown);
+      window.removeEventListener("pointermove", onPointerMove);
+      window.removeEventListener("pointerup", onPointerUp);
+    };
+  }, [messages]);
 
   const itemContent = useCallback(
     (_index: number, row: Row) => {
@@ -100,12 +154,14 @@ export function MessageList({
             grouped={row.grouped}
             showTail={row.showTail}
             onRetry={onRetry}
+            onReply={onReply}
             autoTranslateLanguage={autoTranslateLanguage}
+            arrivalIndex={row.arrivalIndex}
           />
         </div>
       );
     },
-    [onRetry, autoTranslateLanguage],
+    [onRetry, onReply, autoTranslateLanguage],
   );
 
   return (
@@ -119,11 +175,22 @@ export function MessageList({
         atBottomStateChange={onBottomChange}
         itemContent={itemContent}
         computeItemKey={(_i, row) => row.key}
+        scrollerRef={(ref) => {
+          scrollerRef.current = ref as HTMLElement | null;
+        }}
         components={{
           Footer: () => <div className="h-3" />,
           Header: () => <div className="h-2" />,
         }}
       />
+      {scrubLabel && (
+        <div
+          className="pointer-events-none absolute right-8 z-20 rounded-full border border-border bg-surface-elevated px-2.5 py-1 font-mono text-[11px] text-text-secondary shadow-lg"
+          style={{ top: scrubY, transform: "translateY(-50%)" }}
+        >
+          {scrubLabel}
+        </div>
+      )}
       {showFab && (
         <button
           type="button"

@@ -132,9 +132,16 @@ export function AiAssistantThread({ onBack }: { onBack?: () => void }) {
             <ArrowLeft size={18} />
           </button>
         )}
-        <div className="flex h-10 w-10 items-center justify-center rounded-full bg-[linear-gradient(135deg,#0ea5e9_0%,#6366f1_55%,#f43f5e_100%)] text-white">
-          <Sparkles size={18} />
-        </div>
+            <div
+              className="flex h-10 w-10 items-center justify-center rounded-full bg-surface-elevated text-brand-secondary"
+              style={{
+                background:
+                  "linear-gradient(#1a1f38, #1a1f38) padding-box, var(--aurora) border-box",
+                border: "2px solid transparent",
+              }}
+            >
+              <Sparkles size={18} />
+            </div>
         <div className="min-w-0">
           <h2 className="truncate font-[family-name:var(--font-display)] text-base font-semibold">
             TALK-CONNECT AI
