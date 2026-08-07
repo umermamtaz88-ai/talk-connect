@@ -41,23 +41,27 @@ export function AiLauncher({
           <motion.button
             type="button"
             aria-label="Open TALK-CONNECT AI"
-            initial={{ opacity: 0, scale: 0.9 }}
+            initial={{ opacity: 0, scale: 0.92 }}
             animate={{ opacity: 1, scale: 1 }}
-            exit={{ opacity: 0, scale: 0.9 }}
+            exit={{ opacity: 0, scale: 0.92 }}
             transition={motionSafe.spring}
-            whileTap={motionSafe.press}
+            whileTap={motionSafe.reduce ? undefined : { scale: 0.96 }}
             onClick={onOpen}
-            className="fixed right-4 bottom-20 z-40 md:bottom-6 md:right-6"
+            className="fixed right-4 bottom-20 z-40 flex h-14 w-14 items-center justify-center rounded-full p-0 md:bottom-6 md:right-6"
+            style={{
+              // Single centered disc: aurora border + solid fill (no offset shadow layer)
+              background:
+                "linear-gradient(#1a1f38, #1a1f38) padding-box, var(--aurora) border-box",
+              border: "2px solid transparent",
+              boxShadow: "none",
+            }}
           >
-            <span className="relative flex h-14 w-14 items-center justify-center">
-              <span
-                aria-hidden
-                className="aurora-ring absolute inset-0 rounded-full opacity-90"
-              />
-              <span className="relative flex h-[50px] w-[50px] items-center justify-center rounded-full bg-surface-elevated shadow-[0_8px_24px_-8px_rgba(110,86,207,0.55)]">
-                <Sparkles size={22} className="text-brand-secondary" strokeWidth={2} />
-              </span>
-            </span>
+            <Sparkles
+              size={22}
+              className="text-brand-secondary"
+              strokeWidth={2}
+              aria-hidden
+            />
           </motion.button>
         )}
       </AnimatePresence>

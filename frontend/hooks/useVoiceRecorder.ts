@@ -4,12 +4,22 @@ import { useCallback, useRef, useState } from "react";
 
 type VoiceRecorderState = "idle" | "recording" | "processing";
 
+/**
+ * Tap-to-toggle voice notes. Hold-to-record is unreliable because
+ * getUserMedia is async and pointer-up often fires before "recording" state.
+ */
 export function useVoiceRecorder() {
   const [state, setState] = useState<VoiceRecorderState>("idle");
   const [error, setError] = useState<string | null>(null);
   const mediaRef = useRef<MediaRecorder | null>(null);
   const chunksRef = useRef<Blob[]>([]);
   const streamRef = useRef<MediaStream | null>(null);
+  const stateRef = useRef<VoiceRecorderState>("idle");
+
+  const setRecorderState = (next: VoiceRecorderState) => {
+    stateRef.current = next;
+    setState(next);
+  };
 
   const stopStream = () => {
     streamRef.current?.getTracks().forEach((t) => t.stop());
@@ -18,6 +28,9 @@ export function useVoiceRecorder() {
 
   const start = useCallback(async () => {
     setError(null);
+    if (stateRef.current === "recording" || stateRef.current === "processing") {
+      return;
+    }
     if (typeof window === "undefined" || !navigator.mediaDevices?.getUserMedia) {
       setError("Microphone not supported in this browser");
       return;
@@ -29,7 +42,9 @@ export function useVoiceRecorder() {
         ? "audio/webm;codecs=opus"
         : MediaRecorder.isTypeSupported("audio/webm")
           ? "audio/webm"
-          : "";
+          : MediaRecorder.isTypeSupported("audio/mp4")
+            ? "audio/mp4"
+            : "";
       const recorder = new MediaRecorder(
         stream,
         mime ? { mimeType: mime } : undefined,
@@ -39,40 +54,46 @@ export function useVoiceRecorder() {
         if (e.data.size > 0) chunksRef.current.push(e.data);
       };
       mediaRef.current = recorder;
-      recorder.start(200);
-      setState("recording");
+      recorder.start(100);
+      setRecorderState("recording");
     } catch {
       stopStream();
-      setError("Microphone permission denied");
-      setState("idle");
+      setError("Allow microphone access to send voice notes");
+      setRecorderState("idle");
     }
   }, []);
 
   const stop = useCallback(async (): Promise<File | null> => {
     const recorder = mediaRef.current;
     if (!recorder || recorder.state === "inactive") {
-      setState("idle");
+      setRecorderState("idle");
       stopStream();
       return null;
     }
-    setState("processing");
+    setRecorderState("processing");
     const blob = await new Promise<Blob | null>((resolve) => {
-      recorder.onstop = () => {
+      const finish = () => {
         const type = recorder.mimeType || "audio/webm";
         const data = chunksRef.current;
         resolve(data.length ? new Blob(data, { type }) : null);
       };
+      recorder.onstop = finish;
       try {
+        if (recorder.state === "recording") recorder.requestData?.();
         recorder.stop();
       } catch {
-        resolve(null);
+        finish();
       }
     });
     stopStream();
     mediaRef.current = null;
-    setState("idle");
-    if (!blob || blob.size < 200) return null;
-    const ext = blob.type.includes("ogg") ? "ogg" : "webm";
+    setRecorderState("idle");
+    if (!blob || blob.size < 80) return null;
+    const ext = blob.type.includes("mp4")
+      ? "m4a"
+      : blob.type.includes("ogg")
+        ? "ogg"
+        : "webm";
     return new File([blob], `voice-${Date.now()}.${ext}`, {
       type: blob.type || "audio/webm",
     });
@@ -87,8 +108,8 @@ export function useVoiceRecorder() {
     mediaRef.current = null;
     chunksRef.current = [];
     stopStream();
-    setState("idle");
+    setRecorderState("idle");
   }, []);
 
-  return { state, error, start, stop, cancel, setError };
+  return { state, error, start, stop, cancel, setError, stateRef };
 }

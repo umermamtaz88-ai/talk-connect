@@ -123,8 +123,8 @@ export default function MessageThread({
     if (!me || sendLock.current) return;
     const file = await voice.stop();
     if (!file) {
-      setVoiceHint(voice.error ?? "Hold longer to record");
-      window.setTimeout(() => setVoiceHint(null), 2000);
+      setVoiceHint(voice.error ?? "Recording too short — try again");
+      window.setTimeout(() => setVoiceHint(null), 2500);
       return;
     }
     sendLock.current = true;
@@ -159,12 +159,22 @@ export default function MessageThread({
       replaceOptimistic(clientId, { ...msg, clientId, localStatus: "sent" });
     } catch {
       markMessageFailed(chatId, clientId);
-      setVoiceHint("Voice send failed — check mic & try again");
+      setVoiceHint("Voice send failed — try again");
       window.setTimeout(() => setVoiceHint(null), 2500);
     } finally {
       sendLock.current = false;
       setSendState(text.trim() ? "typing" : "idle");
     }
+  }
+
+  async function onMicPress() {
+    if (voice.state === "recording") {
+      await sendVoice();
+      return;
+    }
+    if (voice.state === "processing" || sendLock.current) return;
+    setVoiceHint(null);
+    await voice.start();
   }
 
   function onChange(value: string) {
@@ -435,7 +445,7 @@ export default function MessageThread({
         )}
         {voice.state === "recording" && (
           <p className="mb-2 text-[11px] text-accent">
-            Recording… release to send
+            Recording… tap ■ to send
           </p>
         )}
         <div
@@ -504,8 +514,7 @@ export default function MessageThread({
           <MorphSendButton
             state={sendState}
             onSend={() => void send()}
-            onHoldToRecord={() => void voice.start()}
-            onReleaseRecord={() => void sendVoice()}
+            onMicPress={() => void onMicPress()}
           />
         </div>
       </div>
