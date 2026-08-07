@@ -4,10 +4,18 @@ import { useCallback, useRef, useState } from "react";
 
 type VoiceRecorderState = "idle" | "recording" | "processing";
 
-/**
- * Tap-to-toggle voice notes. Hold-to-record is unreliable because
- * getUserMedia is async and pointer-up often fires before "recording" state.
- */
+function pickMime(): string {
+  if (typeof MediaRecorder === "undefined") return "";
+  const candidates = [
+    "audio/webm;codecs=opus",
+    "audio/webm",
+    "audio/mp4",
+    "audio/ogg;codecs=opus",
+    "audio/ogg",
+  ];
+  return candidates.find((t) => MediaRecorder.isTypeSupported(t)) ?? "";
+}
+
 export function useVoiceRecorder() {
   const [state, setState] = useState<VoiceRecorderState>("idle");
   const [error, setError] = useState<string | null>(null);
@@ -31,20 +39,28 @@ export function useVoiceRecorder() {
     if (stateRef.current === "recording" || stateRef.current === "processing") {
       return;
     }
-    if (typeof window === "undefined" || !navigator.mediaDevices?.getUserMedia) {
+    if (typeof window === "undefined") return;
+    if (!window.isSecureContext) {
+      setError("Voice needs HTTPS — open the live site, not http://");
+      return;
+    }
+    if (!navigator.mediaDevices?.getUserMedia) {
       setError("Microphone not supported in this browser");
       return;
     }
+    if (typeof MediaRecorder === "undefined") {
+      setError("Voice recording not supported on this device");
+      return;
+    }
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const stream = await navigator.mediaDevices.getUserMedia({
+        audio: {
+          echoCancellation: true,
+          noiseSuppression: true,
+        },
+      });
       streamRef.current = stream;
-      const mime = MediaRecorder.isTypeSupported("audio/webm;codecs=opus")
-        ? "audio/webm;codecs=opus"
-        : MediaRecorder.isTypeSupported("audio/webm")
-          ? "audio/webm"
-          : MediaRecorder.isTypeSupported("audio/mp4")
-            ? "audio/mp4"
-            : "";
+      const mime = pickMime();
       const recorder = new MediaRecorder(
         stream,
         mime ? { mimeType: mime } : undefined,
@@ -56,9 +72,18 @@ export function useVoiceRecorder() {
       mediaRef.current = recorder;
       recorder.start(100);
       setRecorderState("recording");
-    } catch {
+    } catch (err) {
       stopStream();
-      setError("Allow microphone access to send voice notes");
+      const name = err instanceof DOMException ? err.name : "";
+      if (name === "NotAllowedError" || name === "PermissionDeniedError") {
+        setError(
+          "Microphone blocked — allow mic in browser site settings, then tap mic again",
+        );
+      } else if (name === "NotFoundError") {
+        setError("No microphone found on this device");
+      } else {
+        setError("Could not start microphone — try again");
+      }
       setRecorderState("idle");
     }
   }, []);
@@ -79,7 +104,13 @@ export function useVoiceRecorder() {
       };
       recorder.onstop = finish;
       try {
-        if (recorder.state === "recording") recorder.requestData?.();
+        if (recorder.state === "recording") {
+          try {
+            recorder.requestData();
+          } catch {
+            /* optional */
+          }
+        }
         recorder.stop();
       } catch {
         finish();
@@ -95,7 +126,7 @@ export function useVoiceRecorder() {
         ? "ogg"
         : "webm";
     return new File([blob], `voice-${Date.now()}.${ext}`, {
-      type: blob.type || "audio/webm",
+      type: blob.type.split(";")[0] || "audio/webm",
     });
   }, []);
 
@@ -109,6 +140,7 @@ export function useVoiceRecorder() {
     chunksRef.current = [];
     stopStream();
     setRecorderState("idle");
+    setError(null);
   }, []);
 
   return { state, error, start, stop, cancel, setError, stateRef };

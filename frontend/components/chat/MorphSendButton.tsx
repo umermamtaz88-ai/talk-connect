@@ -1,12 +1,66 @@
 "use client";
 
-import { AnimatePresence, motion } from "framer-motion";
 import { Loader2, Mic, Send, Square } from "lucide-react";
-import { transitions } from "@/lib/motion";
-import { useMotionSafe } from "@/hooks/useMotionSafe";
+import { cn } from "@/lib/utils";
 
 export type ComposerState = "idle" | "typing" | "sending" | "recording";
 
+/** Always-visible mic + send — never morph into each other or hide the mic. */
+export function ComposerActions({
+  state,
+  onSend,
+  onMicPress,
+  disabled,
+}: {
+  state: ComposerState;
+  onSend: () => void;
+  onMicPress: () => void;
+  disabled?: boolean;
+}) {
+  const recording = state === "recording";
+  const sending = state === "sending";
+
+  return (
+    <div className="flex shrink-0 items-center gap-2">
+      <button
+        type="button"
+        disabled={disabled || sending}
+        onClick={onMicPress}
+        aria-label={recording ? "Stop and send voice note" : "Record voice note"}
+        className={cn(
+          "grid h-11 w-11 place-items-center rounded-full text-white",
+          recording ? "bg-danger" : "bg-brand-primary",
+          (disabled || sending) && "opacity-50",
+        )}
+      >
+        {recording ? (
+          <Square size={16} className="fill-white text-white" />
+        ) : (
+          <Mic size={18} className="text-white" />
+        )}
+      </button>
+      <button
+        type="button"
+        disabled={disabled || sending || state === "recording" || state === "idle"}
+        onClick={onSend}
+        aria-label="Send message"
+        className={cn(
+          "grid h-11 w-11 place-items-center rounded-full bg-brand-primary text-white",
+          (disabled || sending || state === "recording" || state === "idle") &&
+            "opacity-40",
+        )}
+      >
+        {sending ? (
+          <Loader2 size={18} className="animate-spin text-white" />
+        ) : (
+          <Send size={18} className="text-white" />
+        )}
+      </button>
+    </div>
+  );
+}
+
+/** Back-compat wrapper used by AI thread (send only). */
 export function MorphSendButton({
   state,
   onSend,
@@ -14,81 +68,26 @@ export function MorphSendButton({
 }: {
   state: ComposerState;
   onSend: () => void;
-  /** Tap mic when idle to start, tap again while recording to send. */
   onMicPress?: () => void;
 }) {
-  const { reduce } = useMotionSafe();
-
+  if (onMicPress) {
+    return (
+      <ComposerActions state={state} onSend={onSend} onMicPress={onMicPress} />
+    );
+  }
   return (
     <button
       type="button"
-      onClick={() => {
-        if (state === "typing") onSend();
-        else if (state === "idle" || state === "recording") onMicPress?.();
-      }}
-      className={
-        state === "recording"
-          ? "relative grid h-11 w-11 shrink-0 place-items-center rounded-full bg-danger"
-          : "relative grid h-11 w-11 shrink-0 place-items-center rounded-full bg-brand-primary"
-      }
-      aria-label={
-        state === "idle"
-          ? "Record voice note"
-          : state === "typing"
-            ? "Send message"
-            : state === "recording"
-              ? "Stop and send voice note"
-              : "Sending"
-      }
+      onClick={state === "typing" || state === "idle" ? onSend : undefined}
+      disabled={state === "sending"}
+      className="relative grid h-11 w-11 shrink-0 place-items-center rounded-full bg-brand-primary"
+      aria-label="Send message"
     >
-      <AnimatePresence mode="wait">
-        {state === "idle" && (
-          <motion.div
-            key="mic"
-            initial={reduce ? { opacity: 0 } : { opacity: 0, scale: 0.7 }}
-            animate={{ opacity: 1, scale: 1 }}
-            exit={{ opacity: 0, scale: 0.7 }}
-            transition={transitions.snappy}
-          >
-            <Mic size={18} className="text-white" />
-          </motion.div>
-        )}
-        {state === "recording" && (
-          <motion.div
-            key="stop"
-            initial={reduce ? { opacity: 0 } : { opacity: 0, scale: 0.7 }}
-            animate={{ opacity: 1, scale: 1 }}
-            exit={{ opacity: 0, scale: 0.7 }}
-            transition={transitions.snappy}
-          >
-            <Square size={16} className="fill-white text-white" />
-          </motion.div>
-        )}
-        {state === "typing" && (
-          <motion.div
-            key="send"
-            initial={reduce ? { opacity: 0 } : { opacity: 0, scale: 0.7 }}
-            animate={{ opacity: 1, scale: 1 }}
-            exit={{ opacity: 0, scale: 0.7 }}
-            transition={transitions.snappy}
-          >
-            <Send size={18} className="text-white" />
-          </motion.div>
-        )}
-        {state === "sending" && (
-          <motion.div
-            key="spin"
-            animate={reduce ? undefined : { rotate: 360 }}
-            transition={
-              reduce
-                ? undefined
-                : { repeat: Infinity, duration: 0.8, ease: "linear" }
-            }
-          >
-            <Loader2 size={18} className="text-white" />
-          </motion.div>
-        )}
-      </AnimatePresence>
+      {state === "sending" ? (
+        <Loader2 size={18} className="animate-spin text-white" />
+      ) : (
+        <Send size={18} className="text-white" />
+      )}
     </button>
   );
 }

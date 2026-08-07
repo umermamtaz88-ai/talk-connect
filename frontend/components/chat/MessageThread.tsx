@@ -15,7 +15,7 @@ import {
 } from "lucide-react";
 import { MessageList } from "./MessageList";
 import {
-  MorphSendButton,
+  ComposerActions,
   type ComposerState,
 } from "./MorphSendButton";
 import { ThreadSkeleton } from "./ThreadSkeleton";
@@ -445,7 +445,7 @@ export default function MessageThread({
         )}
         {voice.state === "recording" && (
           <p className="mb-2 text-[11px] text-accent">
-            Recording… tap ■ to send
+            Recording… tap the red ■ to send
           </p>
         )}
         <div
@@ -511,7 +511,7 @@ export default function MessageThread({
             placeholder="Message…"
             className="max-h-32 min-h-[44px] flex-1 resize-none rounded-2xl border border-border bg-surface px-4 py-3 text-sm outline-none focus:border-brand-primary"
           />
-          <MorphSendButton
+          <ComposerActions
             state={sendState}
             onSend={() => void send()}
             onMicPress={() => void onMicPress()}

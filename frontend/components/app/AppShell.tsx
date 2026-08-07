@@ -237,6 +237,7 @@ export function AppShell() {
         open={aiOpen}
         onOpen={() => setAiOpen(true)}
         onClose={() => setAiOpen(false)}
+        hidden={Boolean(threadId)}
       />
       <CommandPalette
         open={paletteOpen}

@@ -27,17 +27,20 @@ export function AiLauncher({
   open,
   onOpen,
   onClose,
+  hidden,
 }: {
   open: boolean;
   onOpen: () => void;
   onClose: () => void;
+  /** Hide floating bubble (e.g. while viewing a chat so it doesn't cover the mic). */
+  hidden?: boolean;
 }) {
   const motionSafe = useMotionSafe();
 
   return (
     <>
       <AnimatePresence>
-        {!open && (
+        {!open && !hidden && (
           <motion.button
             type="button"
             aria-label="Open TALK-CONNECT AI"
@@ -47,9 +50,8 @@ export function AiLauncher({
             transition={motionSafe.spring}
             whileTap={motionSafe.reduce ? undefined : { scale: 0.96 }}
             onClick={onOpen}
-            className="fixed right-4 bottom-20 z-40 flex h-14 w-14 items-center justify-center rounded-full p-0 md:bottom-6 md:right-6"
+            className="fixed left-4 top-20 z-30 flex h-12 w-12 items-center justify-center rounded-full p-0 md:left-auto md:right-6 md:top-auto md:bottom-6 md:h-14 md:w-14"
             style={{
-              // Single centered disc: aurora border + solid fill (no offset shadow layer)
               background:
                 "linear-gradient(#1a1f38, #1a1f38) padding-box, var(--aurora) border-box",
               border: "2px solid transparent",
@@ -57,7 +59,7 @@ export function AiLauncher({
             }}
           >
             <Sparkles
-              size={22}
+              size={20}
               className="text-brand-secondary"
               strokeWidth={2}
               aria-hidden
