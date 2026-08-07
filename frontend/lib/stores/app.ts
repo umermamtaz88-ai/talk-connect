@@ -168,15 +168,19 @@ export const useAppStore = create<AppState>((set, get) => ({
     }
     try {
       const list = await messagesApi.list(chatId, { limit: 80 });
-      // Backend returns oldest → newest; keep that order for Virtuoso
       const ordered = list.map((m) => ({ ...m, localStatus: "sent" as const }));
       set((s) => ({
         messages: { ...s.messages, [chatId]: ordered },
         messagesLoading: { ...s.messagesLoading, [chatId]: false },
       }));
     } catch {
+      // Keep any cached messages; surface empty + not-loading so UI can retry
       set((s) => ({
         messagesLoading: { ...s.messagesLoading, [chatId]: false },
+        messages: {
+          ...s.messages,
+          [chatId]: s.messages[chatId] ?? [],
+        },
       }));
     }
   },

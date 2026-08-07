@@ -27,7 +27,18 @@ export function Avatar({
   size?: number;
   className?: string;
 }) {
-  const initial = (name ?? "?").charAt(0).toUpperCase();
+  const label = (name ?? "?").trim();
+  const parts = label.split(/\s+/).filter(Boolean);
+  let initial = "?";
+  if (parts.length >= 2) {
+    initial = (parts[0][0] + parts[1][0]).toUpperCase();
+  } else if (/^\d+$/.test(label)) {
+    initial = label.slice(0, 2);
+  } else if (label.length >= 2) {
+    initial = label.slice(0, 2).toUpperCase();
+  } else if (label.length === 1) {
+    initial = label.toUpperCase();
+  }
   const grad =
     ICON_GRADIENTS[
       Math.abs((iconId ?? name ?? "a").charCodeAt(0)) % ICON_GRADIENTS.length

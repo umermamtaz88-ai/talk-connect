@@ -400,9 +400,16 @@ export const messagesApi = {
     if (params?.limit) q.set("limit", String(params.limit));
     if (params?.before) q.set("before", params.before);
     const qs = q.toString();
-    const rows = await api<unknown[]>(
+    const raw = await api<unknown>(
       `/chats/${chatId}/messages${qs ? `?${qs}` : ""}`,
     );
+    const rows = Array.isArray(raw)
+      ? raw
+      : Array.isArray((raw as { items?: unknown[] })?.items)
+        ? ((raw as { items: unknown[] }).items)
+        : Array.isArray((raw as { messages?: unknown[] })?.messages)
+          ? ((raw as { messages: unknown[] }).messages)
+          : [];
     return rows.map(normalizeMessage) as Message[];
   },
   send: async (
@@ -593,7 +600,7 @@ export const mediaApi = {
       url: string;
       mime_type: string;
       size_bytes: number;
-      kind: "image" | "video";
+      kind: "image" | "video" | "audio";
       filename?: string;
     }>("/media/upload", { method: "POST", formData: fd });
   },

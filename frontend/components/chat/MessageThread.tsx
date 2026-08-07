@@ -25,12 +25,13 @@ import { TypingDots } from "@/components/ui/primitives";
 import { Avatar } from "@/components/ui/Avatar";
 import { VaultSheet } from "@/components/vault/VaultSheet";
 import { BlockReportSheet } from "@/components/friends/BlockReportSheet";
-import { callsApi, chatsApi, locationApi, messagesApi } from "@/lib/api";
+import { callsApi, chatsApi, locationApi, mediaApi, messagesApi } from "@/lib/api";
 import { useAppStore } from "@/lib/stores/app";
 import { useAuthStore } from "@/lib/stores/auth";
 import { useThrottledTyping } from "@/hooks/useThrottledTyping";
 import { useLiveLocationWatcher } from "@/hooks/useLiveLocationWatcher";
 import { useMotionSafe } from "@/hooks/useMotionSafe";
+import { useVoiceRecorder } from "@/hooks/useVoiceRecorder";
 import type { LocationShare, Message } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
@@ -60,6 +61,8 @@ export default function MessageThread({
   const { typingOn, typingOff } = useThrottledTyping(chatId);
   const sendLock = useRef(false);
   const motionSafe = useMotionSafe();
+  const voice = useVoiceRecorder();
+  const [voiceHint, setVoiceHint] = useState<string | null>(null);
 
   const [text, setText] = useState("");
   const [sendState, setSendState] = useState<ComposerState>("idle");
@@ -105,8 +108,64 @@ export default function MessageThread({
   useLiveLocationWatcher(activeLiveShare, Boolean(activeLiveShare));
 
   useEffect(() => {
-    setSendState(text.trim() ? "typing" : "idle");
-  }, [text]);
+    setSendState(
+      voice.state === "recording"
+        ? "recording"
+        : voice.state === "processing"
+          ? "sending"
+          : text.trim()
+            ? "typing"
+            : "idle",
+    );
+  }, [text, voice.state]);
+
+  async function sendVoice() {
+    if (!me || sendLock.current) return;
+    const file = await voice.stop();
+    if (!file) {
+      setVoiceHint(voice.error ?? "Hold longer to record");
+      window.setTimeout(() => setVoiceHint(null), 2000);
+      return;
+    }
+    sendLock.current = true;
+    const clientId = `opt-${crypto.randomUUID()}`;
+    const optimistic: Message = {
+      id: clientId,
+      clientId,
+      chat_id: chatId,
+      sender_id: me.id,
+      type: "voice",
+      body: null,
+      created_at: new Date().toISOString(),
+      localStatus: "pending",
+      reactions: [],
+      attachments: [],
+    };
+    upsertMessage(optimistic);
+    setSendState("sending");
+    try {
+      const uploaded = await mediaApi.upload(file, "voice");
+      const msg = await messagesApi.send(chatId, {
+        type: "voice",
+        attachments: [
+          {
+            storageKey: uploaded.storage_key,
+            mimeType: uploaded.mime_type,
+            sizeBytes: uploaded.size_bytes,
+            filename: uploaded.filename ?? file.name,
+          },
+        ],
+      });
+      replaceOptimistic(clientId, { ...msg, clientId, localStatus: "sent" });
+    } catch {
+      markMessageFailed(chatId, clientId);
+      setVoiceHint("Voice send failed — check mic & try again");
+      window.setTimeout(() => setVoiceHint(null), 2500);
+    } finally {
+      sendLock.current = false;
+      setSendState(text.trim() ? "typing" : "idle");
+    }
+  }
 
   function onChange(value: string) {
     setText(value);
@@ -330,7 +389,7 @@ export default function MessageThread({
         />
       )}
 
-      <div className="min-h-0 flex-1 px-2 md:px-4">
+      <div className="relative min-h-0 flex-1 px-2 md:px-4">
         {showSkeleton ? (
           <ThreadSkeleton />
         ) : (
@@ -339,6 +398,7 @@ export default function MessageThread({
             myId={me?.id}
             onRetry={(m) => void retry(m)}
             onReply={(m) => setReplyTo(m)}
+            onReload={() => void loadMessages(chatId)}
             autoTranslateLanguage={autoLang}
           />
         )}
@@ -367,6 +427,16 @@ export default function MessageThread({
               <X size={14} />
             </button>
           </div>
+        )}
+        {(voiceHint || voice.error) && (
+          <p className="mb-2 text-[11px] text-danger">
+            {voiceHint || voice.error}
+          </p>
+        )}
+        {voice.state === "recording" && (
+          <p className="mb-2 text-[11px] text-accent">
+            Recording… release to send
+          </p>
         )}
         <div
           className={cn(
@@ -431,7 +501,12 @@ export default function MessageThread({
             placeholder="Message…"
             className="max-h-32 min-h-[44px] flex-1 resize-none rounded-2xl border border-border bg-surface px-4 py-3 text-sm outline-none focus:border-brand-primary"
           />
-          <MorphSendButton state={sendState} onSend={() => void send()} />
+          <MorphSendButton
+            state={sendState}
+            onSend={() => void send()}
+            onHoldToRecord={() => void voice.start()}
+            onReleaseRecord={() => void sendVoice()}
+          />
         </div>
       </div>
 

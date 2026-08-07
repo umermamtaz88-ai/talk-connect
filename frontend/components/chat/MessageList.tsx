@@ -22,7 +22,6 @@ type Row =
 
 function buildRows(messages: Message[], myId?: string): Row[] {
   const out: Row[] = [];
-  // Burst window: messages within 2s of each other share a stagger lane
   let burstStart = 0;
   messages.forEach((m, i) => {
     const prev = messages[i - 1];
@@ -70,17 +69,19 @@ export function MessageList({
   myId,
   onRetry,
   onReply,
+  onReload,
   autoTranslateLanguage,
 }: {
   messages: Message[];
   myId?: string;
   onRetry?: (message: Message) => void;
   onReply?: (message: Message) => void;
+  onReload?: () => void;
   autoTranslateLanguage?: string | null;
 }) {
   const rows = useMemo(() => buildRows(messages, myId), [messages, myId]);
   const virtuoso = useRef<VirtuosoHandle>(null);
-  const scrollerRef = useRef<HTMLElement | null>(null);
+  const rootRef = useRef<HTMLDivElement | null>(null);
   const [showFab, setShowFab] = useState(false);
   const [scrubLabel, setScrubLabel] = useState<string | null>(null);
   const [scrubY, setScrubY] = useState(0);
@@ -97,13 +98,13 @@ export function MessageList({
   );
 
   useEffect(() => {
-    const el = scrollerRef.current;
+    const el = rootRef.current;
     if (!el) return;
 
     function onPointerDown(e: PointerEvent) {
-      const target = e.target as HTMLElement;
-      // Rough hit on scrollbar thumb area (right edge)
-      if (e.offsetX < el!.clientWidth - 14) return;
+      if (!el) return;
+      const rect = el.getBoundingClientRect();
+      if (e.clientX < rect.right - 16) return;
       scrubbing.current = true;
     }
     function onPointerMove(e: PointerEvent) {
@@ -164,25 +165,42 @@ export function MessageList({
     [onRetry, onReply, autoTranslateLanguage],
   );
 
+  if (rows.length === 0) {
+    return (
+      <div className="flex h-full flex-col items-center justify-center gap-3 px-6 text-center">
+        <p className="text-sm text-text-muted">No messages in this chat yet.</p>
+        {onReload && (
+          <button
+            type="button"
+            onClick={onReload}
+            className="rounded-full border border-border px-4 py-2 text-xs text-brand-secondary hover:bg-surface-hover"
+          >
+            Reload messages
+          </button>
+        )}
+      </div>
+    );
+  }
+
   return (
-    <div className="relative h-full min-h-0 flex-1">
-      <Virtuoso
-        ref={virtuoso}
-        data={rows}
-        followOutput={() => (atBottomRef.current ? "auto" : false)}
-        increaseViewportBy={{ top: 200, bottom: 120 }}
-        className="h-full"
-        atBottomStateChange={onBottomChange}
-        itemContent={itemContent}
-        computeItemKey={(_i, row) => row.key}
-        scrollerRef={(ref) => {
-          scrollerRef.current = ref as HTMLElement | null;
-        }}
-        components={{
-          Footer: () => <div className="h-3" />,
-          Header: () => <div className="h-2" />,
-        }}
-      />
+    <div ref={rootRef} className="relative h-full min-h-0 w-full flex-1">
+      <div className="absolute inset-0">
+        <Virtuoso
+          ref={virtuoso}
+          data={rows}
+          followOutput={() => (atBottomRef.current ? "auto" : false)}
+          increaseViewportBy={{ top: 200, bottom: 120 }}
+          className="h-full"
+          atBottomStateChange={onBottomChange}
+          itemContent={itemContent}
+          computeItemKey={(_i, row) => row.key}
+          initialTopMostItemIndex={Math.max(0, rows.length - 1)}
+          components={{
+            Footer: () => <div className="h-3" />,
+            Header: () => <div className="h-2" />,
+          }}
+        />
+      </div>
       {scrubLabel && (
         <div
           className="pointer-events-none absolute right-8 z-20 rounded-full border border-border bg-surface-elevated px-2.5 py-1 font-mono text-[11px] text-text-secondary shadow-lg"
@@ -195,8 +213,7 @@ export function MessageList({
         <button
           type="button"
           aria-label="Scroll to bottom"
-          className="absolute right-4 bottom-4 flex h-10 w-10 items-center justify-center rounded-full border border-border bg-surface-elevated text-text-secondary shadow-lg"
-          style={{ transition: "opacity 150ms" }}
+          className="absolute right-4 bottom-4 z-10 flex h-10 w-10 items-center justify-center rounded-full border border-border bg-surface-elevated text-text-secondary shadow-lg"
           onClick={() => {
             virtuoso.current?.scrollToIndex({
               index: rows.length - 1,

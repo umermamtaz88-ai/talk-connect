@@ -13,10 +13,20 @@ MEDIA_DIR = Path("media_storage")
 
 ALLOWED_IMAGE = {"image/jpeg", "image/png", "image/webp", "image/gif"}
 ALLOWED_VIDEO = {"video/mp4", "video/webm", "video/quicktime"}
-ALLOWED = ALLOWED_IMAGE | ALLOWED_VIDEO
+ALLOWED_AUDIO = {
+    "audio/webm",
+    "audio/ogg",
+    "audio/mpeg",
+    "audio/mp4",
+    "audio/wav",
+    "audio/x-wav",
+    "audio/mp3",
+}
+ALLOWED = ALLOWED_IMAGE | ALLOWED_VIDEO | ALLOWED_AUDIO
 
 MAX_IMAGE_BYTES = 15 * 1024 * 1024
 MAX_VIDEO_BYTES = 80 * 1024 * 1024
+MAX_AUDIO_BYTES = 15 * 1024 * 1024
 
 
 def _safe_ext(filename: str | None, mime: str) -> str:
@@ -38,9 +48,16 @@ async def save_upload(
 ) -> dict:
     mime = (mime_type or "application/octet-stream").split(";")[0].strip().lower()
     if mime not in ALLOWED:
-        raise ValueError("Only image (jpeg/png/webp/gif) and video (mp4/webm) are allowed")
+        raise ValueError(
+            "Only image, video, or audio (webm/ogg/mp3/wav/mp4) uploads are allowed"
+        )
 
-    max_bytes = MAX_VIDEO_BYTES if mime in ALLOWED_VIDEO else MAX_IMAGE_BYTES
+    if mime in ALLOWED_AUDIO:
+        max_bytes = MAX_AUDIO_BYTES
+    elif mime in ALLOWED_VIDEO:
+        max_bytes = MAX_VIDEO_BYTES
+    else:
+        max_bytes = MAX_IMAGE_BYTES
     if len(data) > max_bytes:
         raise ValueError("File too large")
     if not data:
@@ -54,7 +71,12 @@ async def save_upload(
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_bytes(data)
 
-    kind = "video" if mime in ALLOWED_VIDEO else "image"
+    if mime in ALLOWED_AUDIO:
+        kind = "audio"
+    elif mime in ALLOWED_VIDEO:
+        kind = "video"
+    else:
+        kind = "image"
     return {
         "storage_key": storage_key,
         "url": f"/media/{storage_key}",

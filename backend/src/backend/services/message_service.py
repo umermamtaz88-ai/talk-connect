@@ -47,6 +47,7 @@ def _message_dict(
                 "mime_type": a.mime_type,
                 "size_bytes": a.size_bytes,
                 "filename": a.filename,
+                "url": f"/media/{a.storage_key}",
             }
             for a in (msg.attachments or [])
         ],

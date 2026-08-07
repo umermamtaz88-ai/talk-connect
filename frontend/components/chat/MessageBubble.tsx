@@ -12,7 +12,7 @@ import {
 import { useEffect, useRef, useState } from "react";
 import { ReactionOrbTrigger } from "./ReactionOrbTrigger";
 import { LocationMessage } from "./LocationMessage";
-import { messagesApi } from "@/lib/api";
+import { messagesApi, mediaApi } from "@/lib/api";
 import { useAppStore } from "@/lib/stores/app";
 import { useAuthStore } from "@/lib/stores/auth";
 import { useMotionSafe } from "@/hooks/useMotionSafe";
@@ -62,6 +62,28 @@ function CodeMessageCard({ message }: { message: Message }) {
 function VoiceMessage({ message }: { message: Message }) {
   const [open, setOpen] = useState(false);
   const [speaking, setSpeaking] = useState(false);
+  const [playing, setPlaying] = useState(false);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+  const audioUrl =
+    message.attachments?.[0]?.url ??
+    (message.attachments?.[0]?.storage_key
+      ? mediaApi.url(message.attachments[0].storage_key)
+      : null);
+
+  function togglePlay() {
+    if (!audioUrl) return;
+    if (!audioRef.current) {
+      audioRef.current = new Audio(audioUrl);
+      audioRef.current.onended = () => setPlaying(false);
+      audioRef.current.onerror = () => setPlaying(false);
+    }
+    if (playing) {
+      audioRef.current.pause();
+      setPlaying(false);
+      return;
+    }
+    void audioRef.current.play().then(() => setPlaying(true)).catch(() => setPlaying(false));
+  }
 
   function readAloud() {
     if (!message.transcript || typeof window === "undefined") return;
@@ -80,16 +102,29 @@ function VoiceMessage({ message }: { message: Message }) {
 
   return (
     <div className="min-w-[200px]">
-      <div className="mb-1 flex h-8 items-end gap-0.5 px-1">
+      <button
+        type="button"
+        onClick={togglePlay}
+        className="mb-1 flex h-8 w-full items-end gap-0.5 rounded-lg px-1 hover:bg-white/5"
+        aria-label={playing ? "Pause voice" : "Play voice"}
+      >
         {Array.from({ length: 24 }).map((_, i) => (
           <span
             key={i}
-            className="w-1 rounded-full bg-brand-secondary/70"
+            className={cn(
+              "w-1 rounded-full bg-brand-secondary/70",
+              playing && "animate-pulse",
+            )}
             style={{ height: `${20 + ((i * 17) % 60)}%` }}
           />
         ))}
-      </div>
+      </button>
       <div className="flex flex-wrap items-center gap-2">
+        {audioUrl && (
+          <span className="text-[11px] text-text-muted">
+            {playing ? "Playing…" : "Tap waveform to play"}
+          </span>
+        )}
         {message.transcript && (
           <button
             type="button"

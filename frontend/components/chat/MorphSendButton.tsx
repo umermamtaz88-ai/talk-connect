@@ -5,16 +5,18 @@ import { Loader2, Mic, Send } from "lucide-react";
 import { transitions } from "@/lib/motion";
 import { useMotionSafe } from "@/hooks/useMotionSafe";
 
-export type ComposerState = "idle" | "typing" | "sending";
+export type ComposerState = "idle" | "typing" | "sending" | "recording";
 
 export function MorphSendButton({
   state,
   onSend,
   onHoldToRecord,
+  onReleaseRecord,
 }: {
   state: ComposerState;
   onSend: () => void;
   onHoldToRecord?: () => void;
+  onReleaseRecord?: () => void;
 }) {
   const { reduce } = useMotionSafe();
 
@@ -22,18 +24,35 @@ export function MorphSendButton({
     <button
       type="button"
       onClick={state === "typing" ? onSend : undefined}
-      onPointerDown={state === "idle" ? onHoldToRecord : undefined}
-      className="relative grid h-11 w-11 place-items-center rounded-full bg-brand-primary"
+      onPointerDown={(e) => {
+        if (state !== "idle" || !onHoldToRecord) return;
+        e.preventDefault();
+        (e.currentTarget as HTMLButtonElement).setPointerCapture(e.pointerId);
+        onHoldToRecord();
+      }}
+      onPointerUp={() => {
+        if (state === "recording") onReleaseRecord?.();
+      }}
+      onPointerCancel={() => {
+        if (state === "recording") onReleaseRecord?.();
+      }}
+      className={
+        state === "recording"
+          ? "relative grid h-11 w-11 place-items-center rounded-full bg-danger ring-2 ring-danger/40"
+          : "relative grid h-11 w-11 place-items-center rounded-full bg-brand-primary"
+      }
       aria-label={
         state === "idle"
-          ? "Hold to record"
+          ? "Hold to record voice"
           : state === "typing"
             ? "Send message"
-            : "Sending"
+            : state === "recording"
+              ? "Release to send voice"
+              : "Sending"
       }
     >
       <AnimatePresence mode="wait">
-        {state === "idle" && (
+        {(state === "idle" || state === "recording") && (
           <motion.div
             key="mic"
             initial={
