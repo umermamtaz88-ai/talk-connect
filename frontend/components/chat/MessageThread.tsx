@@ -12,12 +12,13 @@ import {
   HardDrive,
   MapPin,
   X,
+  Mic,
+  Send,
+  Square,
+  Loader2,
 } from "lucide-react";
 import { MessageList } from "./MessageList";
-import {
-  ComposerActions,
-  type ComposerState,
-} from "./MorphSendButton";
+import { type ComposerState } from "./MorphSendButton";
 import { ThreadSkeleton } from "./ThreadSkeleton";
 import { LiveShareBanner } from "./LocationMessage";
 import { ShareLocationSheet } from "./ShareLocationSheet";
@@ -445,7 +446,7 @@ export default function MessageThread({
         )}
         {voice.state === "recording" && (
           <p className="mb-2 text-[11px] text-accent">
-            Recording… tap the red ■ to send
+            Recording… tap the mic again to send
           </p>
         )}
         <div
@@ -498,24 +499,74 @@ export default function MessageThread({
               </div>
             )}
           </div>
-          <textarea
-            value={text}
-            onChange={(e) => onChange(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === "Enter" && !e.shiftKey) {
-                e.preventDefault();
-                void send();
+
+          <div className="flex min-h-[44px] min-w-0 flex-1 items-end rounded-2xl border border-border bg-surface focus-within:border-brand-primary">
+            <textarea
+              value={text}
+              onChange={(e) => onChange(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && !e.shiftKey) {
+                  e.preventDefault();
+                  void send();
+                }
+              }}
+              rows={1}
+              placeholder="Message…"
+              className="max-h-32 min-h-[44px] flex-1 resize-none bg-transparent px-4 py-3 text-sm outline-none"
+            />
+            <button
+              type="button"
+              onClick={() => void onMicPress()}
+              disabled={sendState === "sending"}
+              title={
+                sendState === "recording"
+                  ? "Stop & send voice"
+                  : "Voice message"
               }
-            }}
-            rows={1}
-            placeholder="Message…"
-            className="max-h-32 min-h-[44px] flex-1 resize-none rounded-2xl border border-border bg-surface px-4 py-3 text-sm outline-none focus:border-brand-primary"
-          />
-          <ComposerActions
-            state={sendState}
-            onSend={() => void send()}
-            onMicPress={() => void onMicPress()}
-          />
+              aria-label={
+                sendState === "recording"
+                  ? "Stop and send voice note"
+                  : "Record voice message"
+              }
+              className={cn(
+                "mb-1.5 mr-1.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-full",
+                sendState === "recording"
+                  ? "bg-danger text-white"
+                  : "bg-brand-primary/20 text-brand-secondary hover:bg-brand-primary hover:text-white",
+                sendState === "sending" && "opacity-50",
+              )}
+            >
+              {sendState === "recording" ? (
+                <Square size={14} className="fill-current" />
+              ) : (
+                <Mic size={18} strokeWidth={2.25} />
+              )}
+            </button>
+          </div>
+
+          <button
+            type="button"
+            onClick={() => void send()}
+            disabled={
+              sendState === "sending" ||
+              sendState === "recording" ||
+              !text.trim()
+            }
+            aria-label="Send message"
+            className={cn(
+              "flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-brand-primary text-white",
+              (sendState === "sending" ||
+                sendState === "recording" ||
+                !text.trim()) &&
+                "opacity-40",
+            )}
+          >
+            {sendState === "sending" ? (
+              <Loader2 size={18} className="animate-spin" />
+            ) : (
+              <Send size={18} />
+            )}
+          </button>
         </div>
       </div>
 
